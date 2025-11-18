@@ -33,7 +33,7 @@ class TurbofanDataLoader:
     def load_data(self, filename):
         """Load data from txt file"""
         filepath = f"{self.data_path}/{filename}"
-        data = pd.read_csv(filepath, sep='\s+', header=None, names=self.col_names)
+        data = pd.read_csv(filepath, sep=r'\s+', header=None, names=self.col_names)
         return data
 
     def add_remaining_useful_life(self, df):
