@@ -281,8 +281,9 @@ class DDRSATrainer:
             print(f"  {key}: {value:.4f}")
 
         # Save metrics
+        serializable_metrics = {k: float(v) for k, v in all_metrics.items()}
         with open(os.path.join(self.log_dir, 'test_metrics.json'), 'w') as f:
-            json.dump(all_metrics, f, indent=4)
+            json.dump(serializable_metrics, f, indent=4)
 
         return all_metrics
 
