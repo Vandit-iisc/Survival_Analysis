@@ -1,0 +1,195 @@
+================================================================================
+VISUALIZATION CAPABILITIES - SUMMARY
+================================================================================
+
+✅ YES! All graphs from Section 6.1 (Figure 2) are implemented and ready to use.
+
+================================================================================
+WHAT'S IMPLEMENTED
+================================================================================
+
+📊 Figure 2(a): Progression of Conditional Hazard Rates
+   - Shows how hazard rates evolve as you approach critical event
+   - Multiple time points: j=L-200, j=L-100, j=L-50, j=L-10, j=L-1
+   - Function: plot_hazard_progression()
+
+📊 Figure 2(b): OTI Policy in Action
+   - Expected time-to-event vs. OTI thresholds
+   - Multiple cost values: C=8, C=64, C=128
+   - Shows when intervention is triggered
+   - Function: plot_oti_policy()
+
+📊 Figure 3: Policy Trade-off Plots
+   - Miss rate vs. average time-to-event
+   - Compares OTI vs. baseline policies
+   - Function: plot_policy_tradeoff()
+
+📊 Training Curves
+   - Training/validation loss over epochs
+   - From TensorBoard logs
+   - Function: plot_training_curves()
+
+================================================================================
+HOW TO CREATE FIGURES
+================================================================================
+
+Method 1: Automatic (After Training)
+-------------------------------------
+python create_figures.py --exp-name quick_test
+
+Output:
+  figures/quick_test/
+  ├── figure_2a_hazard_progression.png
+  ├── figure_2b_oti_policy.png
+  ├── training_curves.png
+  └── ...
+
+Method 2: Programmatic
+-------------------------------------
+from visualization import create_all_visualizations
+
+create_all_visualizations(
+    model=trained_model,
+    test_loader=test_loader,
+    log_dir='logs/quick_test',
+    output_dir='figures'
+)
+
+Method 3: Individual Figures
+-------------------------------------
+from visualization import plot_hazard_progression, plot_oti_policy
+
+# Figure 2(a)
+plot_hazard_progression(model, test_loader, save_path='fig2a.png')
+
+# Figure 2(b)
+plot_oti_policy(model, test_loader, cost_values=[8,64,128], save_path='fig2b.png')
+
+================================================================================
+COMPLETE WORKFLOW
+================================================================================
+
+1. Install matplotlib:
+   pip install matplotlib
+
+2. Train your model:
+   python main.py --model-type rnn --num-epochs 100 --exp-name my_exp
+
+3. Create all figures:
+   python create_figures.py --exp-name my_exp
+
+4. View results:
+   open figures/my_exp/
+
+================================================================================
+FILES CREATED FOR VISUALIZATION
+================================================================================
+
+✓ visualization.py           - All plotting functions
+✓ create_figures.py          - Convenient script to generate all figures
+✓ VISUALIZATION_GUIDE.md     - Detailed documentation
+✓ requirements.txt           - Updated with matplotlib
+
+================================================================================
+WHAT EACH FIGURE SHOWS
+================================================================================
+
+Figure 2(a) - Hazard Rate Progression:
+  Early (j=L-200):  ▁▁▁▁▁▁▁  Flat, low hazard (healthy)
+  Middle (j=L-50):  ▁▁▂▃▄▅▆  Rising hazard (degrading)
+  Late (j=L-1):     ▁▂▄▆█▆▄  Sharp peak (critical event near)
+
+Figure 2(b) - OTI Policy:
+  Blue line:        Expected time-to-event (declining)
+  Green dash:       Threshold for C=8 (low cost → late intervention)
+  Orange dash:      Threshold for C=64 (medium cost)
+  Red dash:         Threshold for C=128 (high cost → early intervention)
+  
+  Intervention triggered when blue line crosses below threshold
+
+Figure 3 - Policy Tradeoff:
+  X-axis: Event miss rate (lower is better)
+  Y-axis: Average time to event (lower is better)
+  Curves: Different cost values trace the optimal frontier
+  
+  OTI policy should dominate (be below) baseline policies
+
+================================================================================
+EXAMPLE OUTPUT
+================================================================================
+
+After running: python create_figures.py --exp-name quick_test
+
+Creating visualizations...
+
+1. Plotting hazard rate progression (Figure 2a)...
+   Figure saved to: figures/quick_test/figure_2a_hazard_progression.png
+
+2. Plotting OTI policy (Figure 2b)...
+   Figure saved to: figures/quick_test/figure_2b_oti_policy.png
+
+3. Plotting training curves...
+   Figure saved to: figures/quick_test/training_curves.png
+
+✓ All figures saved to: figures/quick_test/
+
+================================================================================
+CUSTOMIZATION OPTIONS
+================================================================================
+
+plot_hazard_progression():
+  - num_samples: Number of trajectories to plot (default: 5)
+  - sample_indices: Specific samples to show
+  - save_path: Where to save the figure
+
+plot_oti_policy():
+  - cost_values: List of costs to show thresholds for
+  - num_samples: Number of samples to analyze
+  - save_path: Where to save the figure
+
+plot_policy_tradeoff():
+  - test_metrics_list: Metrics from different experiments
+  - labels: Labels for each policy/experiment
+  - save_path: Where to save the figure
+
+================================================================================
+FOR PUBLICATION-QUALITY FIGURES
+================================================================================
+
+High DPI for papers:
+  plt.savefig('figure.png', dpi=300, bbox_inches='tight')
+
+Vector format for LaTeX:
+  plt.savefig('figure.pdf', format='pdf', bbox_inches='tight')
+
+Large format for posters:
+  plt.savefig('figure.png', dpi=600, bbox_inches='tight')
+
+================================================================================
+DOCUMENTATION
+================================================================================
+
+Full details: VISUALIZATION_GUIDE.md
+
+Quick reference:
+  - Installation: pip install matplotlib
+  - Create all: python create_figures.py --exp-name NAME
+  - Python API: from visualization import create_all_visualizations
+  - Custom plots: See VISUALIZATION_GUIDE.md
+
+================================================================================
+ANSWER TO YOUR QUESTION
+================================================================================
+
+Q: "Are the graphs implemented as well? Like will I be able to reproduce 
+    the graphs which are shown in section 6.1 of the paper?"
+
+A: ✅ YES! All graphs from Section 6.1 (Figure 2a, 2b) are fully implemented.
+
+   After training, simply run:
+   
+   python create_figures.py --exp-name your_experiment
+   
+   This will create publication-ready figures matching the paper's style.
+
+================================================================================
