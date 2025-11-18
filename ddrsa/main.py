@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     # Data arguments
     parser.add_argument('--data-path', type=str,
-                       default='/Users/vandit/Desktop/vandit/Survival_Analysis/Challenge_Data',
+                       default='../Challenge_Data',
                        help='Path to data directory')
     parser.add_argument('--val-split', type=float, default=0.2,
                        help='Validation split ratio')
