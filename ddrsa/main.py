@@ -51,6 +51,13 @@ def main(args):
         config['lookback_window'] = args.lookback_window
     if args.pred_horizon is not None:
         config['pred_horizon'] = args.pred_horizon
+    if args.warmup_steps is not None:
+        config['warmup_steps'] = args.warmup_steps
+    if args.lr_decay_type is not None:
+        config['lr_decay_type'] = args.lr_decay_type
+
+    # Store num_epochs in config for scheduler calculations
+    config['num_epochs'] = args.num_epochs
 
     # Additional model-specific overrides
     if args.model_type == 'rnn':
@@ -188,6 +195,11 @@ if __name__ == '__main__':
                        help='Lookback window size')
     parser.add_argument('--pred-horizon', type=int, default=None,
                        help='Prediction horizon')
+    parser.add_argument('--warmup-steps', type=int, default=None,
+                       help='Number of warmup steps for transformer (default: 4000)')
+    parser.add_argument('--lr-decay-type', type=str, default=None,
+                       choices=['cosine', 'exponential', 'none'],
+                       help='Learning rate decay type after warmup')
 
     # Experiment arguments
     parser.add_argument('--exp-name', type=str, default='ddrsa_experiment',
