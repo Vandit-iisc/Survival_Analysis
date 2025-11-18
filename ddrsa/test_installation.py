@@ -85,7 +85,7 @@ print("\n5. Testing Data Loader...")
 from data_loader import TurbofanDataLoader
 import os
 
-data_path = "/Users/vandit/Desktop/vandit/Survival_Analysis/Challenge_Data"
+data_path = "../Challenge_Data"
 if os.path.exists(data_path):
     loader = TurbofanDataLoader(data_path, lookback_window=128, pred_horizon=100)
     print("   ✓ TurbofanDataLoader created")

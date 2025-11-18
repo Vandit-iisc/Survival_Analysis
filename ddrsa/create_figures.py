@@ -123,7 +123,7 @@ if __name__ == '__main__':
     parser.add_argument('--log-dir', type=str, default=None,
                        help='Log directory (default: logs/<exp-name>)')
     parser.add_argument('--data-path', type=str,
-                       default='/Users/vandit/Desktop/vandit/Survival_Analysis/Challenge_Data',
+                       default='../Challenge_Data',
                        help='Path to data directory')
     parser.add_argument('--output-dir', type=str, default=None,
                        help='Output directory for figures (default: figures/<exp-name>)')

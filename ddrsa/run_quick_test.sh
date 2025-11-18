@@ -11,7 +11,7 @@ echo "This will run a quick 5-epoch test to verify"
 echo "that everything is working correctly."
 echo ""
 
-DATA_PATH="/Users/vandit/Desktop/vandit/Survival_Analysis/Challenge_Data"
+DATA_PATH="../Challenge_Data"
 
 python main.py \
     --data-path $DATA_PATH \

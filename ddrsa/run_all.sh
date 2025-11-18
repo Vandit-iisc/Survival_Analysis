@@ -4,7 +4,7 @@
 # This script reproduces the experiments from the paper
 
 # Set data path
-DATA_PATH="/Users/vandit/Desktop/vandit/Survival_Analysis/Challenge_Data"
+DATA_PATH="../Challenge_Data"
 
 echo "========================================="
 echo "DDRSA Experiments - NASA Turbofan Dataset"
