@@ -74,6 +74,13 @@ def main(args):
             config['d_model'] = args.d_model
         if args.nhead is not None:
             config['nhead'] = args.nhead
+        if args.num_encoder_layers is not None:
+            config['num_encoder_layers'] = args.num_encoder_layers
+        if args.num_decoder_layers is not None:
+            config['num_decoder_layers'] = args.num_decoder_layers
+        if args.dim_feedforward is not None:
+            config['dim_feedforward'] = args.dim_feedforward
+        # Legacy: --num-layers sets both encoder and decoder layers
         if args.num_layers is not None:
             config['num_encoder_layers'] = args.num_layers
             config['num_decoder_layers'] = args.num_layers
@@ -112,10 +119,12 @@ def main(args):
 
     # Create model
     print(f"\nCreating {args.model_type.upper()} model...")
-    model_kwargs = {k: v for k, v in config.items()
-                   if k not in ['model_type', 'batch_size', 'learning_rate',
-                               'weight_decay', 'lambda_param', 'grad_clip',
-                               'patience', 'save_interval', 'lookback_window']}
+    # Filter out training-specific parameters, only pass model architecture parameters
+    exclude_keys = ['model_type', 'batch_size', 'learning_rate', 'weight_decay',
+                   'lambda_param', 'grad_clip', 'patience', 'save_interval',
+                   'lookback_window', 'use_warmup', 'warmup_steps', 'lr_decay_type',
+                   'num_epochs']
+    model_kwargs = {k: v for k, v in config.items() if k not in exclude_keys}
     model = create_ddrsa_model(
         model_type=args.model_type,
         input_dim=input_dim,
@@ -190,6 +199,12 @@ if __name__ == '__main__':
                        help='Transformer model dimension')
     parser.add_argument('--nhead', type=int, default=None,
                        help='Number of attention heads')
+    parser.add_argument('--num-encoder-layers', type=int, default=None,
+                       help='Number of transformer encoder layers')
+    parser.add_argument('--num-decoder-layers', type=int, default=None,
+                       help='Number of transformer decoder layers')
+    parser.add_argument('--dim-feedforward', type=int, default=None,
+                       help='Dimension of feedforward network in transformer')
 
     # Training arguments
     parser.add_argument('--batch-size', type=int, default=None,
