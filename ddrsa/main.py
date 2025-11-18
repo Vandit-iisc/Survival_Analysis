@@ -95,7 +95,10 @@ def main(args):
         train_file='train.txt',
         test_file='test.txt',
         val_split=args.val_split,
-        num_workers=args.num_workers
+        num_workers=args.num_workers,
+        use_paper_split=args.use_paper_split,
+        random_seed=args.seed,
+        use_minmax=args.use_minmax
     )
 
     print(f"Train batches: {len(train_loader)}")
@@ -162,9 +165,15 @@ if __name__ == '__main__':
                        default='../Challenge_Data',
                        help='Path to data directory')
     parser.add_argument('--val-split', type=float, default=0.2,
-                       help='Validation split ratio')
+                       help='Validation split ratio (only used if not using paper split)')
     parser.add_argument('--num-workers', type=int, default=4,
                        help='Number of data loading workers')
+    parser.add_argument('--use-paper-split', action='store_true',
+                       help='Use paper splitting methodology: 70/30 train/test at unit level, then 30%% validation from train')
+    parser.add_argument('--use-minmax', action='store_true', default=True,
+                       help='Use MinMaxScaler [-1, 1] instead of StandardScaler (paper default: True)')
+    parser.add_argument('--use-standard-scaler', dest='use_minmax', action='store_false',
+                       help='Use StandardScaler (z-score) instead of MinMaxScaler')
 
     # Model arguments
     parser.add_argument('--model-type', type=str, default='rnn',
