@@ -207,29 +207,71 @@ def main(args):
         if loss_fig:
             plt.close(loss_fig)
 
-        # Create all other visualizations (test data)
+        # === BEST MODEL VISUALIZATIONS ===
+        print("\n--- Best Model Visualizations ---")
+        # Model is already loaded with best weights from training
+
+        # Create subdirectory for best model
+        best_figures_dir = os.path.join(figures_dir, 'best_model')
+        os.makedirs(best_figures_dir, exist_ok=True)
+
+        # Create visualizations (test data)
         create_all_visualizations(
             model=model,
             train_loader=train_loader,
             val_loader=val_loader,
             test_loader=test_loader,
             log_dir=log_dir,
-            output_dir=figures_dir,
+            output_dir=best_figures_dir,
             use_train_data=False
         )
 
-        # Create all other visualizations (train data)
+        # Create visualizations (train data)
         create_all_visualizations(
             model=model,
             train_loader=train_loader,
             val_loader=val_loader,
             test_loader=test_loader,
             log_dir=log_dir,
-            output_dir=figures_dir,
+            output_dir=best_figures_dir,
+            use_train_data=True
+        )
+
+        # === LAST EPOCH MODEL VISUALIZATIONS ===
+        print("\n--- Last Epoch Model Visualizations (Overfitting Analysis) ---")
+
+        # Load last epoch model
+        trainer.load_checkpoint('last_model.pt')
+
+        # Create subdirectory for last model
+        last_figures_dir = os.path.join(figures_dir, 'last_model')
+        os.makedirs(last_figures_dir, exist_ok=True)
+
+        # Create visualizations (test data)
+        create_all_visualizations(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
+            log_dir=log_dir,
+            output_dir=last_figures_dir,
+            use_train_data=False
+        )
+
+        # Create visualizations (train data)
+        create_all_visualizations(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
+            log_dir=log_dir,
+            output_dir=last_figures_dir,
             use_train_data=True
         )
 
         print(f"\nFigures saved to: {os.path.abspath(figures_dir)}")
+        print(f"  - Best model figures: {os.path.join(figures_dir, 'best_model')}")
+        print(f"  - Last model figures: {os.path.join(figures_dir, 'last_model')}")
 
 
 if __name__ == '__main__':
