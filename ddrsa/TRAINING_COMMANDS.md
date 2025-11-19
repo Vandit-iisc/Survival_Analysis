@@ -88,11 +88,50 @@ python main.py \
     --create-visualization
 ```
 
+### Important: Hazard Rate Magnitude
+
+If your hazard rates are in the range of 0-0.1 instead of the paper's 0-0.6, check these key parameters:
+
+| Parameter | Default (Now Paper-Exact) | Impact on Hazard Rates |
+|-----------|---------------------------|------------------------|
+| `pred_horizon` | **64** | Shorter horizon → higher per-step hazard rates |
+| `lambda_param` | **0.75** | Weights l_z more (precise event time prediction) |
+| `batch_size` | **512** | Better gradient estimates |
+| `learning_rate` (RNN) | **0.01** | Faster convergence to proper hazard magnitudes |
+| `patience` | **10** | More aggressive early stopping |
+
+**Why pred_horizon matters:**
+- With `pred_horizon=100`: model spreads failure probability over 100 steps → lower per-step hazard
+- With `pred_horizon=64`: model must predict higher hazard at failure time to capture event
+
+**Quick fix command:**
+```bash
+python main.py \
+    --model-type rnn \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --patience 10 \
+    --use-paper-split \
+    --use-minmax \
+    --num-epochs 200 \
+    --exp-name paper_defaults \
+    --create-visualization
+```
+
+Or simply use defaults (now paper-exact):
+```bash
+python main.py --model-type rnn --use-paper-split --use-minmax --num-epochs 200 --exp-name test --create-visualization
+```
+
 ---
 
 ## Transformer Models
 
 **Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
+
+All transformer commands now include paper-exact parameters: `--pred-horizon 64 --lambda-param 0.75 --patience 10`
 
 ### Basic Transformer (Default Configuration)
 
@@ -100,7 +139,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 2 \
@@ -112,6 +151,8 @@ python main.py \
     --activation relu \
     --batch-size 32 \
     --learning-rate 0.0001 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_basic \
     --create-visualization
@@ -123,7 +164,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 250 \
-    --patience 35 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 4 \
@@ -135,6 +176,8 @@ python main.py \
     --activation relu \
     --batch-size 32 \
     --learning-rate 0.0001 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_deep \
     --create-visualization
@@ -146,7 +189,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 2 \
@@ -158,6 +201,8 @@ python main.py \
     --activation relu \
     --batch-size 24 \
     --learning-rate 0.00008 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_wide \
     --create-visualization
@@ -169,7 +214,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 300 \
-    --patience 40 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 6 \
@@ -181,6 +226,8 @@ python main.py \
     --activation relu \
     --batch-size 16 \
     --learning-rate 0.00005 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_complex \
     --create-visualization
@@ -192,7 +239,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 2 \
@@ -204,6 +251,8 @@ python main.py \
     --activation gelu \
     --batch-size 32 \
     --learning-rate 0.0001 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_gelu \
     --create-visualization
@@ -215,7 +264,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 300 \
-    --patience 40 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 6 \
@@ -227,6 +276,8 @@ python main.py \
     --activation gelu \
     --batch-size 16 \
     --learning-rate 0.00005 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_deep_gelu \
     --create-visualization
@@ -238,7 +289,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 300 \
-    --patience 50 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 8 \
@@ -250,6 +301,8 @@ python main.py \
     --activation relu \
     --batch-size 32 \
     --learning-rate 0.0001 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_8enc \
     --create-visualization
@@ -261,7 +314,7 @@ python main.py \
 python main.py \
     --model-type transformer \
     --num-epochs 250 \
-    --patience 35 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --num-encoder-layers 4 \
@@ -273,6 +326,8 @@ python main.py \
     --activation gelu \
     --batch-size 16 \
     --learning-rate 0.00005 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name transformer_high_dropout \
     --create-visualization
@@ -284,6 +339,8 @@ python main.py \
 
 **Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
 
+All LSTM commands now include paper-exact parameters: `--pred-horizon 64 --lambda-param 0.75 --patience 10 --batch-size 512 --learning-rate 0.01`
+
 ### Basic LSTM (Default Configuration)
 
 ```bash
@@ -291,14 +348,16 @@ python main.py \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 128 \
     --num-layers 2 \
     --dropout 0.1 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name lstm_basic \
     --create-visualization
@@ -311,14 +370,16 @@ python main.py \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 250 \
-    --patience 35 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 128 \
     --num-layers 4 \
     --dropout 0.2 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name lstm_deep \
     --create-visualization
@@ -331,14 +392,16 @@ python main.py \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 256 \
     --num-layers 2 \
     --dropout 0.1 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name lstm_wide \
     --create-visualization
@@ -351,14 +414,16 @@ python main.py \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 300 \
-    --patience 40 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 256 \
     --num-layers 4 \
     --dropout 0.3 \
-    --batch-size 24 \
-    --learning-rate 0.0008 \
+    --batch-size 256 \
+    --learning-rate 0.008 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name lstm_complex \
     --create-visualization
@@ -371,14 +436,16 @@ python main.py \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 100 \
-    --patience 20 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 64 \
     --num-layers 1 \
     --dropout 0.1 \
-    --batch-size 64 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name lstm_small \
     --create-visualization
@@ -390,6 +457,8 @@ python main.py \
 
 **Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
 
+All GRU commands now include paper-exact parameters: `--pred-horizon 64 --lambda-param 0.75 --patience 10 --batch-size 512 --learning-rate 0.01`
+
 ### Basic GRU
 
 ```bash
@@ -397,14 +466,16 @@ python main.py \
     --model-type rnn \
     --rnn-type GRU \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 128 \
     --num-layers 2 \
     --dropout 0.1 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name gru_basic \
     --create-visualization
@@ -417,14 +488,16 @@ python main.py \
     --model-type rnn \
     --rnn-type GRU \
     --num-epochs 250 \
-    --patience 35 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 128 \
     --num-layers 4 \
     --dropout 0.2 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name gru_deep \
     --create-visualization
@@ -437,14 +510,16 @@ python main.py \
     --model-type rnn \
     --rnn-type GRU \
     --num-epochs 200 \
-    --patience 30 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 256 \
     --num-layers 2 \
     --dropout 0.1 \
-    --batch-size 32 \
-    --learning-rate 0.001 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name gru_wide \
     --create-visualization
@@ -457,14 +532,16 @@ python main.py \
     --model-type rnn \
     --rnn-type GRU \
     --num-epochs 300 \
-    --patience 40 \
+    --patience 10 \
     --use-paper-split \
     --use-minmax \
     --hidden-dim 256 \
     --num-layers 4 \
     --dropout 0.3 \
-    --batch-size 24 \
-    --learning-rate 0.0008 \
+    --batch-size 256 \
+    --learning-rate 0.008 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir experiment_run1 \
     --exp-name gru_complex \
     --create-visualization
@@ -490,8 +567,10 @@ python main.py \
     --dim-feedforward 512 \
     --dropout 0.1 \
     --activation gelu \
-    --batch-size 16 \
-    --learning-rate 0.00005 \
+    --batch-size 32 \
+    --learning-rate 0.0001 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
     --output-dir full_training \
     --exp-name transformer_500epochs \
     --create-visualization

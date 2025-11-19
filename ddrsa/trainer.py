@@ -472,23 +472,25 @@ def get_default_config(model_type='rnn'):
     """
     Get default configuration matching the paper
 
-    From paper Section 6.2:
+    From paper Appendix B:
     - Encoder: LSTM with 128 step look-back, 16 hidden units
     - Decoder: LSTM with 16 hidden units
-    - Learning rate: 1e-4
-    - Batch size: 32
-    - Lambda (α): 0.5
+    - Learning rate: 0.01 (for RNN), 1e-4 (for transformer)
+    - Batch size: 512
+    - Lambda (α): 0.75
+    - Prediction horizon: 64
+    - Patience: 10
     """
     config = {
         'model_type': model_type,
         'lookback_window': 128,
-        'pred_horizon': 100,
-        'batch_size': 32,
-        'learning_rate': 1e-4,
+        'pred_horizon': 64,           # Paper default (not 100)
+        'batch_size': 512,            # Paper default
+        'learning_rate': 1e-4,        # Will be overridden per model type
         'weight_decay': 1e-6,
-        'lambda_param': 0.5,
+        'lambda_param': 0.75,         # Paper default (not 0.5)
         'grad_clip': 1.0,
-        'patience': 20,
+        'patience': 10,               # Paper default
         'save_interval': 10,
     }
 
@@ -499,7 +501,9 @@ def get_default_config(model_type='rnn'):
             'encoder_layers': 1,
             'decoder_layers': 1,
             'dropout': 0.1,
-            'rnn_type': 'LSTM'
+            'rnn_type': 'LSTM',
+            # Paper uses higher LR for RNN
+            'learning_rate': 0.01
         })
     elif model_type == 'transformer':
         config.update({
@@ -510,6 +514,23 @@ def get_default_config(model_type='rnn'):
             'dim_feedforward': 256,
             'dropout': 0.1,
             # Transformer-specific training settings
+            'use_warmup': True,
+            'warmup_steps': 4000,
+            'lr_decay_type': 'cosine'
+        })
+    elif model_type == 'probsparse':
+        # Informer paper defaults (AAAI 2021)
+        config.update({
+            'd_model': 512,           # Informer default
+            'nhead': 8,               # Informer default
+            'num_encoder_layers': 2,  # Informer default
+            'decoder_hidden_dim': 512,  # Match encoder dimension
+            'decoder_layers': 1,      # Informer default
+            'dim_feedforward': 2048,  # Informer default
+            'dropout': 0.05,          # Informer default
+            'activation': 'gelu',     # Informer default
+            'factor': 5,              # ProbSparse attention factor
+            # Informer training settings
             'use_warmup': True,
             'warmup_steps': 4000,
             'lr_decay_type': 'cosine'
