@@ -129,7 +129,7 @@ def main(args):
     exclude_keys = ['model_type', 'batch_size', 'learning_rate', 'weight_decay',
                    'lambda_param', 'grad_clip', 'patience', 'save_interval',
                    'lookback_window', 'use_warmup', 'warmup_steps', 'lr_decay_type',
-                   'num_epochs']
+                   'num_epochs', 'use_early_stopping']
     model_kwargs = {k: v for k, v in config.items() if k not in exclude_keys}
     model = create_ddrsa_model(
         model_type=args.model_type,
@@ -179,6 +179,53 @@ def main(args):
     print("="*80 + "\n")
 
     print(f"Results saved to: {log_dir}")
+
+    # Create visualizations if requested
+    if args.create_visualization:
+        print("\n" + "="*80)
+        print("Creating Visualizations")
+        print("="*80 + "\n")
+
+        from visualization import create_all_visualizations
+        import matplotlib.pyplot as plt
+
+        # Create figures directory
+        if args.output_dir:
+            figures_dir = os.path.join('..', args.output_dir, 'figures', args.exp_name)
+        else:
+            figures_dir = f'figures/{args.exp_name}'
+        os.makedirs(figures_dir, exist_ok=True)
+
+        # Plot and save loss curves
+        loss_fig = trainer.plot_loss_curves(
+            save_path=os.path.join(figures_dir, 'loss_curves.png')
+        )
+        if loss_fig:
+            plt.close(loss_fig)
+
+        # Create all other visualizations (test data)
+        create_all_visualizations(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
+            log_dir=log_dir,
+            output_dir=figures_dir,
+            use_train_data=False
+        )
+
+        # Create all other visualizations (train data)
+        create_all_visualizations(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            test_loader=test_loader,
+            log_dir=log_dir,
+            output_dir=figures_dir,
+            use_train_data=True
+        )
+
+        print(f"\nFigures saved to: {os.path.abspath(figures_dir)}")
 
 
 if __name__ == '__main__':
@@ -255,6 +302,8 @@ if __name__ == '__main__':
                        help='Random seed')
     parser.add_argument('--no-cuda', action='store_true',
                        help='Disable CUDA')
+    parser.add_argument('--create-visualization', action='store_true',
+                       help='Create visualizations after training')
 
     args = parser.parse_args()
 

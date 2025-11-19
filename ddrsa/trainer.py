@@ -168,6 +168,10 @@ class DDRSATrainer:
         self.best_val_loss = float('inf')
         self.patience_counter = 0
 
+        # Loss history for plotting
+        self.train_loss_history = []
+        self.val_loss_history = []
+
         # Save config
         with open(os.path.join(log_dir, 'config.json'), 'w') as f:
             json.dump(config, f, indent=4)
@@ -301,6 +305,10 @@ class DDRSATrainer:
 
             epoch_time = time.time() - start_time
 
+            # Track loss history
+            self.train_loss_history.append(train_loss)
+            self.val_loss_history.append(val_loss)
+
             # Log to tensorboard
             self.writer.add_scalar('Loss/train', train_loss, epoch)
             self.writer.add_scalar('Loss/val', val_loss, epoch)
@@ -337,6 +345,14 @@ class DDRSATrainer:
         print("\nTraining complete!")
         print(f"Best validation loss: {self.best_val_loss:.4f}")
 
+        # Save loss history
+        loss_history = {
+            'train_loss': self.train_loss_history,
+            'val_loss': self.val_loss_history
+        }
+        with open(os.path.join(self.log_dir, 'loss_history.json'), 'w') as f:
+            json.dump(loss_history, f, indent=4)
+
         # Load best model for final evaluation
         self.load_checkpoint('best_model.pt')
 
@@ -345,6 +361,34 @@ class DDRSATrainer:
         test_metrics = self.evaluate_test()
 
         return test_metrics
+
+    def plot_loss_curves(self, save_path=None):
+        """Plot training and validation loss curves"""
+        import matplotlib.pyplot as plt
+
+        if len(self.train_loss_history) == 0:
+            print("No loss history available to plot")
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        epochs = range(1, len(self.train_loss_history) + 1)
+        ax.plot(epochs, self.train_loss_history, 'b-', label='Train Loss', linewidth=2)
+        ax.plot(epochs, self.val_loss_history, 'r-', label='Validation Loss', linewidth=2)
+
+        ax.set_xlabel('Epoch', fontsize=12)
+        ax.set_ylabel('Loss', fontsize=12)
+        ax.set_title('Training and Validation Loss', fontsize=14, fontweight='bold')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Loss curves saved to: {save_path}")
+
+        return fig
 
     def evaluate_test(self):
         """Evaluate model on test set"""
