@@ -16,14 +16,15 @@ def plot_hazard_progression(model, data_loader, device='cpu', num_samples=5,
 
     Shows how estimated conditional hazard rates evolve as the model
     observes more data approaching the critical event.
+    Plots hazard rates at exactly j=L-200, j=L-100, j=L-50, j=L-10, j=L-1
 
     Args:
         model: Trained DDRSA model
         data_loader: Data loader with sequences
         device: Device to run on
-        num_samples: Number of samples to plot
+        num_samples: Number of samples to plot (not used, kept for compatibility)
         save_path: Path to save the figure
-        sample_indices: Specific indices to plot (if None, random selection)
+        sample_indices: Specific indices to plot (not used, kept for compatibility)
     """
     model.eval()
 
@@ -52,54 +53,87 @@ def plot_hazard_progression(model, data_loader, device='cpu', num_samples=5,
     uncensored_targets = all_targets[uncensored_mask]
 
     if len(uncensored_sequences) == 0:
-        print(f"Warning: No uncensored samples found in {len(all_sequences)} samples. Using all samples.")
-        uncensored_sequences = all_sequences[:num_samples]
-        uncensored_targets = all_targets[:num_samples]
+        print(f"Warning: No uncensored samples found in {len(all_sequences)} samples.")
+        return plt.figure()
 
-    if sample_indices is None:
-        # Randomly select samples
-        if len(uncensored_sequences) > num_samples:
-            indices = np.random.choice(len(uncensored_sequences), num_samples, replace=False)
-        else:
-            indices = range(len(uncensored_sequences))
-    else:
-        indices = sample_indices
+    # Find a sample with event time > 200 to show all j values
+    # Also prioritize samples that have actual data (non-zero values) throughout the sequence
+    best_idx = 0
+    best_event_time = 0
+    best_data_length = 0
+
+    for i in range(len(uncensored_sequences)):
+        event_time = torch.argmax(uncensored_targets[i]).item()
+        # Count non-zero timesteps to find sample with most actual data
+        seq = uncensored_sequences[i]
+        # Check how many timesteps have non-zero data (sum across features)
+        data_length = (seq.abs().sum(dim=-1) > 0).sum().item()
+
+        # Prefer samples with more data, then longer event times
+        if data_length > best_data_length or (data_length == best_data_length and event_time > best_event_time):
+            best_event_time = event_time
+            best_data_length = data_length
+            best_idx = i
+
+    sequence = uncensored_sequences[best_idx:best_idx+1].to(device)
+    target = uncensored_targets[best_idx]
+    event_time = torch.argmax(target).item()
+    lookback_window = sequence.size(1)
+
+    print(f"Selected sample with event_time={event_time}, data_length={best_data_length}, lookback_window={lookback_window}")
 
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    colors = plt.cm.viridis(np.linspace(0, 1, len(indices)))
+    # Define the exact j values we want to plot (as offsets from L)
+    # Adjust based on lookback window size
+    if lookback_window >= 200:
+        j_offsets = [200, 100, 50, 10, 1]
+    elif lookback_window >= 100:
+        j_offsets = [lookback_window - 1, 100, 50, 10, 1]
+    else:
+        # For smaller lookback windows (e.g., 128)
+        j_offsets = [lookback_window - 1, lookback_window // 2, lookback_window // 4, 10, 1]
+
+    # Filter out any offsets larger than lookback_window
+    j_offsets = [o for o in j_offsets if o <= lookback_window]
+
+    colors = plt.cm.viridis(np.linspace(0, 1, len(j_offsets)))
 
     with torch.no_grad():
-        for idx, color in zip(indices, colors):
-            sequence = uncensored_sequences[idx:idx+1].to(device)
-            target = uncensored_targets[idx]
+        for offset, color in zip(j_offsets, colors):
+            # Calculate how much of the sequence to use
+            # j = L - offset means we're at position (total_length - offset)
+            # We need to truncate the sequence to simulate being at that position
 
-            # Find event time
-            event_time = torch.argmax(target).item()
+            if offset > lookback_window:
+                continue  # Skip if we don't have enough data
 
-            # Get predictions at different time points
-            # Simulate observing data at different points in the sequence
-            lookback_window = sequence.size(1)
-
-            # We'll look at predictions at various points as we approach the event
-            time_points = [max(0, lookback_window - event_time + offset)
-                          for offset in [-200, -100, -50, -10, -1]]
-            time_points = [t for t in time_points if t >= 0 and t < lookback_window]
-
-            if len(time_points) == 0:
+            # Truncate sequence to simulate being at j = L - offset
+            # We take the first (lookback_window - offset) time steps
+            truncated_length = lookback_window - offset + 1
+            if truncated_length <= 0:
                 continue
 
-            # For simplicity, we'll show the final prediction
-            # (In practice, you'd need to modify the model to accept variable-length inputs)
-            hazard_logits = model(sequence)
+            # Pad the truncated sequence to match expected input size
+            truncated_seq = sequence[:, :truncated_length, :]
+
+            # Pad to original size (model expects fixed input size)
+            if truncated_length < lookback_window:
+                padding = torch.zeros(1, lookback_window - truncated_length, sequence.size(2), device=device)
+                padded_seq = torch.cat([padding, truncated_seq], dim=1)
+            else:
+                padded_seq = truncated_seq
+
+            # Get hazard predictions
+            hazard_logits = model(padded_seq)
             hazard_rates, _ = compute_hazard_from_logits(hazard_logits)
             hazard_rates = hazard_rates.cpu().numpy()[0]
 
             # Plot hazard rates
             time_steps = np.arange(len(hazard_rates))
-            label = f'j=L-{lookback_window - event_time}' if lookback_window - event_time > 0 else 'j=L-1'
-            ax.plot(time_steps, hazard_rates, color=color, label=label, alpha=0.7)
+            label = f'j=L-{offset}'
+            ax.plot(time_steps, hazard_rates, color=color, label=label, alpha=0.7, linewidth=1.5)
 
     ax.set_xlabel('Time steps from j', fontsize=12)
     ax.set_ylabel('Hazard rate', fontsize=12)
@@ -164,33 +198,36 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
     # Simulate sequential observations leading up to the event
     # In the paper, they show expected TTE at each observation cycle j
     # The TTE decreases as j increases (we're getting closer to the event)
+    # The zigzag pattern comes from actual model predictions at each time step
     time_points = []
     tte_values = []
 
     with torch.no_grad():
-        # Get the base expected TTE from the model
-        hazard_logits = model(sequence.to(device))
-        base_expected_tte = compute_expected_tte(hazard_logits).cpu().numpy()[0]
+        # Compute expected TTE at different observation points
+        # by truncating the sequence and padding
 
-        # Simulate observations over the engine's operational life
-        # In the paper, the x-axis shows observation cycle j from 0 to ~250
-        # The y-axis shows expected TTE which decreases linearly as we approach failure
+        # Sample points throughout the sequence
+        num_points = min(100, lookback)
+        step_size = max(1, lookback // num_points)
 
-        # Use the full lookback window + prediction horizon as the total life span
-        pred_horizon = hazard_logits.size(1)
-        total_life = lookback + event_time  # Total observed life of the engine
+        for j in range(1, lookback + 1, step_size):
+            # At observation cycle j, we have seen j time steps of data
+            # Truncate sequence to first j elements and pad
+            truncated_seq = sequence[:, :j, :]
 
-        # Generate time points from 0 to total_life
-        num_points = min(250, total_life)
+            # Pad to original size (model expects fixed input size)
+            if j < lookback:
+                padding = torch.zeros(1, lookback - j, sequence.size(2), device=device)
+                padded_seq = torch.cat([padding, truncated_seq], dim=1)
+            else:
+                padded_seq = truncated_seq
 
-        for j in range(0, num_points, max(1, num_points // 100)):  # Sample ~100 points
-            # At observation cycle j, the expected TTE is approximately:
-            # Base TTE - j (since we're j steps into the engine's life)
-            # But we need to ensure TTE doesn't go negative
-            expected_tte_at_j = max(0, base_expected_tte + pred_horizon - j)
+            # Get model prediction
+            hazard_logits = model(padded_seq.to(device))
+            expected_tte = compute_expected_tte(hazard_logits).cpu().numpy()[0]
 
             time_points.append(j)
-            tte_values.append(expected_tte_at_j)
+            tte_values.append(expected_tte)
 
     # Get hazard rates for threshold computation
     with torch.no_grad():
