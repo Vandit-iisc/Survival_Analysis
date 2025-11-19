@@ -34,15 +34,24 @@ def main(args):
         print(f"  {key}: {value}")
     print()
 
-    # Load test data
+    # Load test data (use same split method as training)
     print("Loading test data...")
-    _, _, test_loader, _ = get_dataloaders(
+    use_paper_split = config.get('use_warmup', False)  # If warmup is used, likely paper split was used too
+    use_minmax = True  # Default to MinMax as per paper
+
+    train_loader, val_loader, test_loader, _ = get_dataloaders(
         data_path=args.data_path,
         batch_size=config['batch_size'],
         lookback_window=config['lookback_window'],
         pred_horizon=config['pred_horizon'],
-        num_workers=args.num_workers
+        num_workers=args.num_workers,
+        use_paper_split=use_paper_split,
+        random_seed=42,
+        use_minmax=use_minmax
     )
+
+    print(f"Data split: {'Paper split (engine-level)' if use_paper_split else 'Sample-level'}")
+    print(f"Normalization: {'MinMaxScaler [-1,1]' if use_minmax else 'StandardScaler'}")
 
     # Get input dimension
     sample_batch = next(iter(test_loader))
@@ -97,9 +106,12 @@ def main(args):
     # Create all visualizations
     create_all_visualizations(
         model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
         test_loader=test_loader,
         log_dir=args.log_dir,
-        output_dir=args.output_dir
+        output_dir=args.output_dir,
+        use_train_data=args.use_train_data
     )
 
     print()
@@ -120,24 +132,39 @@ if __name__ == '__main__':
 
     parser.add_argument('--exp-name', type=str, required=True,
                        help='Experiment name (log subdirectory)')
+    parser.add_argument('--parent-dir', type=str, default=None,
+                       help='Parent directory in Survival_Analysis (same as --output-dir in main.py)')
     parser.add_argument('--log-dir', type=str, default=None,
                        help='Log directory (default: logs/<exp-name>)')
     parser.add_argument('--data-path', type=str,
                        default='../Challenge_Data',
                        help='Path to data directory')
-    parser.add_argument('--output-dir', type=str, default=None,
+    parser.add_argument('--figures-dir', type=str, default=None,
                        help='Output directory for figures (default: figures/<exp-name>)')
     parser.add_argument('--num-workers', type=int, default=4,
                        help='Number of data loading workers')
+    parser.add_argument('--use-train-data', action='store_true',
+                       help='Use training data for visualizations instead of test data')
 
     args = parser.parse_args()
 
-    # Set default log_dir if not provided
-    if args.log_dir is None:
-        args.log_dir = f'logs/{args.exp_name}'
-
-    # Set default output_dir if not provided
-    if args.output_dir is None:
-        args.output_dir = f'figures/{args.exp_name}'
+    # Set directories based on parent-dir
+    if args.parent_dir:
+        # Use parent directory structure (same as main.py --output-dir)
+        base_dir = os.path.join('..', args.parent_dir)
+        if args.log_dir is None:
+            args.log_dir = os.path.join(base_dir, 'logs', args.exp_name)
+        if args.figures_dir is None:
+            args.output_dir = os.path.join(base_dir, 'figures', args.exp_name)
+        else:
+            args.output_dir = args.figures_dir
+    else:
+        # Default behavior (in ddrsa folder)
+        if args.log_dir is None:
+            args.log_dir = f'logs/{args.exp_name}'
+        if args.figures_dir is None:
+            args.output_dir = f'figures/{args.exp_name}'
+        else:
+            args.output_dir = args.figures_dir
 
     main(args)

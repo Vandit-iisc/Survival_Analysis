@@ -12,9 +12,88 @@ import json
 import numpy as np
 from tqdm import tqdm
 import time
+import math
 
 from loss import DDRSALossDetailed, compute_expected_tte
 from metrics import evaluate_model, compute_oti_metrics
+
+
+class WarmupScheduler:
+    """
+    Learning rate scheduler with linear warmup and cosine/exponential decay
+
+    This is the standard transformer learning rate schedule:
+    - Linear warmup for warmup_steps
+    - Cosine or exponential decay afterwards
+    """
+
+    def __init__(self, optimizer, d_model=64, warmup_steps=4000, decay_type='cosine', total_steps=None):
+        """
+        Args:
+            optimizer: PyTorch optimizer
+            d_model: Model dimension (for scaling, optional)
+            warmup_steps: Number of warmup steps
+            decay_type: 'cosine' or 'exponential'
+            total_steps: Total training steps (needed for cosine decay)
+        """
+        self.optimizer = optimizer
+        self.d_model = d_model
+        self.warmup_steps = warmup_steps
+        self.decay_type = decay_type
+        self.total_steps = total_steps
+        self.current_step = 0
+        self.base_lr = optimizer.param_groups[0]['lr']
+
+    def step(self):
+        """Update learning rate"""
+        self.current_step += 1
+        lr = self._get_lr()
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+
+    def _get_lr(self):
+        """Calculate learning rate for current step"""
+        step = self.current_step
+
+        # Linear warmup
+        if step < self.warmup_steps:
+            # Linear increase from 0 to base_lr
+            return self.base_lr * (step / self.warmup_steps)
+
+        # After warmup, apply decay
+        if self.decay_type == 'cosine':
+            # Cosine annealing
+            if self.total_steps is None:
+                # If total_steps not provided, use a gentle decay
+                progress = (step - self.warmup_steps) / (10000 - self.warmup_steps)
+            else:
+                progress = (step - self.warmup_steps) / (self.total_steps - self.warmup_steps)
+            progress = min(progress, 1.0)
+            return self.base_lr * 0.5 * (1 + math.cos(math.pi * progress))
+
+        elif self.decay_type == 'exponential':
+            # Exponential decay
+            decay_factor = (self.warmup_steps / step) ** 0.5
+            return self.base_lr * decay_factor
+
+        else:
+            # No decay, just maintain base_lr after warmup
+            return self.base_lr
+
+    def state_dict(self):
+        """Return state dict for checkpointing"""
+        return {
+            'current_step': self.current_step,
+            'warmup_steps': self.warmup_steps,
+            'base_lr': self.base_lr
+        }
+
+    def load_state_dict(self, state_dict):
+        """Load state dict from checkpoint"""
+        self.current_step = state_dict['current_step']
+        self.warmup_steps = state_dict['warmup_steps']
+        self.base_lr = state_dict['base_lr']
 
 
 class DDRSATrainer:
@@ -54,13 +133,32 @@ class DDRSATrainer:
             weight_decay=config.get('weight_decay', 1e-6)
         )
 
-        # Learning rate scheduler
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer,
-            mode='min',
-            factor=0.5,
-            patience=5
-        )
+        # Learning rate scheduler - use warmup for transformers, ReduceLROnPlateau for RNNs
+        self.use_warmup = config.get('use_warmup', False)
+
+        if self.use_warmup:
+            # Transformer-style warmup scheduler
+            warmup_steps = config.get('warmup_steps', 4000)
+            total_steps = config.get('num_epochs', 100) * len(train_loader)
+            decay_type = config.get('lr_decay_type', 'cosine')
+
+            self.scheduler = WarmupScheduler(
+                self.optimizer,
+                d_model=config.get('d_model', 64),
+                warmup_steps=warmup_steps,
+                decay_type=decay_type,
+                total_steps=total_steps
+            )
+            print(f"Using WarmupScheduler with {warmup_steps} warmup steps and {decay_type} decay")
+        else:
+            # RNN-style ReduceLROnPlateau
+            self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                mode='min',
+                factor=0.5,
+                patience=5
+            )
+            print("Using ReduceLROnPlateau scheduler")
 
         # TensorBoard writer
         self.writer = SummaryWriter(log_dir=os.path.join(log_dir, 'tensorboard'))
@@ -69,6 +167,10 @@ class DDRSATrainer:
         self.epoch = 0
         self.best_val_loss = float('inf')
         self.patience_counter = 0
+
+        # Loss history for plotting
+        self.train_loss_history = []
+        self.val_loss_history = []
 
         # Save config
         with open(os.path.join(log_dir, 'config.json'), 'w') as f:
@@ -109,6 +211,10 @@ class DDRSATrainer:
             )
 
             self.optimizer.step()
+
+            # Update learning rate (for warmup scheduler, step per batch)
+            if self.use_warmup:
+                self.scheduler.step()
 
             # Accumulate losses
             total_loss += loss.item()
@@ -189,14 +295,19 @@ class DDRSATrainer:
             # Validate
             val_loss, val_components = self.validate_epoch()
 
-            # Learning rate scheduler step
-            old_lr = self.optimizer.param_groups[0]['lr']
-            self.scheduler.step(val_loss)
-            new_lr = self.optimizer.param_groups[0]['lr']
-            if new_lr != old_lr:
-                print(f"Learning rate reduced: {old_lr:.6f} → {new_lr:.6f}")
+            # Learning rate scheduler step (for ReduceLROnPlateau, step per epoch)
+            if not self.use_warmup:
+                old_lr = self.optimizer.param_groups[0]['lr']
+                self.scheduler.step(val_loss)
+                new_lr = self.optimizer.param_groups[0]['lr']
+                if new_lr != old_lr:
+                    print(f"Learning rate reduced: {old_lr:.6f} → {new_lr:.6f}")
 
             epoch_time = time.time() - start_time
+
+            # Track loss history
+            self.train_loss_history.append(train_loss)
+            self.val_loss_history.append(val_loss)
 
             # Log to tensorboard
             self.writer.add_scalar('Loss/train', train_loss, epoch)
@@ -225,13 +336,26 @@ class DDRSATrainer:
             if (epoch + 1) % self.config.get('save_interval', 10) == 0:
                 self.save_checkpoint(f'checkpoint_epoch_{epoch+1}.pt')
 
-            # Early stopping
-            if self.patience_counter >= self.config.get('patience', 20):
-                print(f"\nEarly stopping after {epoch+1} epochs")
-                break
+            # Early stopping (only if enabled)
+            if self.config.get('use_early_stopping', True):
+                if self.patience_counter >= self.config.get('patience', 20):
+                    print(f"\nEarly stopping after {epoch+1} epochs")
+                    break
 
         print("\nTraining complete!")
         print(f"Best validation loss: {self.best_val_loss:.4f}")
+
+        # Save last epoch model (for overfitting analysis)
+        self.save_checkpoint('last_model.pt')
+        print(f"Last epoch model saved (epoch {self.epoch + 1})")
+
+        # Save loss history
+        loss_history = {
+            'train_loss': self.train_loss_history,
+            'val_loss': self.val_loss_history
+        }
+        with open(os.path.join(self.log_dir, 'loss_history.json'), 'w') as f:
+            json.dump(loss_history, f, indent=4)
 
         # Load best model for final evaluation
         self.load_checkpoint('best_model.pt')
@@ -241,6 +365,34 @@ class DDRSATrainer:
         test_metrics = self.evaluate_test()
 
         return test_metrics
+
+    def plot_loss_curves(self, save_path=None):
+        """Plot training and validation loss curves"""
+        import matplotlib.pyplot as plt
+
+        if len(self.train_loss_history) == 0:
+            print("No loss history available to plot")
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        epochs = range(1, len(self.train_loss_history) + 1)
+        ax.plot(epochs, self.train_loss_history, 'b-', label='Train Loss', linewidth=2)
+        ax.plot(epochs, self.val_loss_history, 'r-', label='Validation Loss', linewidth=2)
+
+        ax.set_xlabel('Epoch', fontsize=12)
+        ax.set_ylabel('Loss', fontsize=12)
+        ax.set_title('Training and Validation Loss', fontsize=14, fontweight='bold')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Loss curves saved to: {save_path}")
+
+        return fig
 
     def evaluate_test(self):
         """Evaluate model on test set"""
@@ -356,7 +508,11 @@ def get_default_config(model_type='rnn'):
             'num_encoder_layers': 2,
             'num_decoder_layers': 2,
             'dim_feedforward': 256,
-            'dropout': 0.1
+            'dropout': 0.1,
+            # Transformer-specific training settings
+            'use_warmup': True,
+            'warmup_steps': 4000,
+            'lr_decay_type': 'cosine'
         })
 
     return config

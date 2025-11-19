@@ -16,26 +16,33 @@ def plot_hazard_progression(model, data_loader, device='cpu', num_samples=5,
 
     Shows how estimated conditional hazard rates evolve as the model
     observes more data approaching the critical event.
+    Plots hazard rates at exactly j=L-200, j=L-100, j=L-50, j=L-10, j=L-1
 
     Args:
         model: Trained DDRSA model
         data_loader: Data loader with sequences
         device: Device to run on
-        num_samples: Number of samples to plot
+        num_samples: Number of samples to plot (not used, kept for compatibility)
         save_path: Path to save the figure
-        sample_indices: Specific indices to plot (if None, random selection)
+        sample_indices: Specific indices to plot (not used, kept for compatibility)
     """
     model.eval()
 
-    # Get some samples from test set
+    # Get samples from dataset - collect enough batches to find uncensored samples
     all_sequences = []
     all_targets = []
 
-    for sequences, targets, _ in data_loader:
+    # Collect more batches to ensure we find uncensored samples
+    max_batches = 50
+    for i, (sequences, targets, _) in enumerate(data_loader):
         all_sequences.append(sequences)
         all_targets.append(targets)
-        if len(all_sequences) * sequences.size(0) >= num_samples * 10:
+        if i >= max_batches:
             break
+
+    if len(all_sequences) == 0:
+        print("Warning: No data found in data loader")
+        return plt.figure()
 
     all_sequences = torch.cat(all_sequences, dim=0)
     all_targets = torch.cat(all_targets, dim=0)
@@ -45,50 +52,88 @@ def plot_hazard_progression(model, data_loader, device='cpu', num_samples=5,
     uncensored_sequences = all_sequences[uncensored_mask]
     uncensored_targets = all_targets[uncensored_mask]
 
-    if sample_indices is None:
-        # Randomly select samples
-        if len(uncensored_sequences) > num_samples:
-            indices = np.random.choice(len(uncensored_sequences), num_samples, replace=False)
-        else:
-            indices = range(len(uncensored_sequences))
-    else:
-        indices = sample_indices
+    if len(uncensored_sequences) == 0:
+        print(f"Warning: No uncensored samples found in {len(all_sequences)} samples.")
+        return plt.figure()
+
+    # Find a sample with event time > 200 to show all j values
+    # Also prioritize samples that have actual data (non-zero values) throughout the sequence
+    best_idx = 0
+    best_event_time = 0
+    best_data_length = 0
+
+    for i in range(len(uncensored_sequences)):
+        event_time = torch.argmax(uncensored_targets[i]).item()
+        # Count non-zero timesteps to find sample with most actual data
+        seq = uncensored_sequences[i]
+        # Check how many timesteps have non-zero data (sum across features)
+        data_length = (seq.abs().sum(dim=-1) > 0).sum().item()
+
+        # Prefer samples with more data, then longer event times
+        if data_length > best_data_length or (data_length == best_data_length and event_time > best_event_time):
+            best_event_time = event_time
+            best_data_length = data_length
+            best_idx = i
+
+    sequence = uncensored_sequences[best_idx:best_idx+1].to(device)
+    target = uncensored_targets[best_idx]
+    event_time = torch.argmax(target).item()
+    lookback_window = sequence.size(1)
+
+    print(f"Selected sample with event_time={event_time}, data_length={best_data_length}, lookback_window={lookback_window}")
 
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    colors = plt.cm.viridis(np.linspace(0, 1, len(indices)))
+    # Define the exact j values we want to plot (as offsets from L)
+    # Adjust based on lookback window size
+    if lookback_window >= 200:
+        j_offsets = [200, 100, 50, 10, 1]
+    elif lookback_window >= 100:
+        j_offsets = [lookback_window - 1, 100, 50, 10, 1]
+    else:
+        # For smaller lookback windows (e.g., 128)
+        j_offsets = [lookback_window - 1, lookback_window // 2, lookback_window // 4, 10, 1]
+
+    # Filter out any offsets larger than lookback_window
+    j_offsets = [o for o in j_offsets if o <= lookback_window]
+
+    colors = plt.cm.viridis(np.linspace(0, 1, len(j_offsets)))
 
     with torch.no_grad():
-        for idx, color in zip(indices, colors):
-            sequence = uncensored_sequences[idx:idx+1].to(device)
-            target = uncensored_targets[idx]
+        for offset, color in zip(j_offsets, colors):
+            # Calculate how much of the sequence to use
+            # j = L - offset means we're at position (total_length - offset)
+            # We need to truncate the sequence to simulate being at that position
 
-            # Find event time
-            event_time = torch.argmax(target).item()
+            if offset > lookback_window:
+                continue  # Skip if we don't have enough data
 
-            # Get predictions at different time points
-            # Simulate observing data at different points in the sequence
-            lookback_window = sequence.size(1)
-
-            # We'll look at predictions at various points as we approach the event
-            time_points = [max(0, lookback_window - event_time + offset)
-                          for offset in [-200, -100, -50, -10, -1]]
-            time_points = [t for t in time_points if t >= 0 and t < lookback_window]
-
-            if len(time_points) == 0:
+            # Truncate sequence to simulate being at j = L - offset
+            # We take the first (lookback_window - offset) time steps
+            truncated_length = lookback_window - offset + 1
+            if truncated_length <= 0:
                 continue
 
-            # For simplicity, we'll show the final prediction
-            # (In practice, you'd need to modify the model to accept variable-length inputs)
-            hazard_logits = model(sequence)
+            # Pad the truncated sequence to match expected input size
+            truncated_seq = sequence[:, :truncated_length, :]
+
+            # Pad to original size (model expects fixed input size)
+            if truncated_length < lookback_window:
+                padding = torch.zeros(1, lookback_window - truncated_length, sequence.size(2), device=device)
+                padded_seq = torch.cat([padding, truncated_seq], dim=1)
+            else:
+                padded_seq = truncated_seq
+
+            # Get hazard predictions
+            hazard_logits = model(padded_seq)
             hazard_rates, _ = compute_hazard_from_logits(hazard_logits)
             hazard_rates = hazard_rates.cpu().numpy()[0]
 
             # Plot hazard rates
             time_steps = np.arange(len(hazard_rates))
-            label = f'j=L-{lookback_window - event_time}' if lookback_window - event_time > 0 else 'j=L-1'
-            ax.plot(time_steps, hazard_rates, color=color, label=label, alpha=0.7)
+            label = f'j=L-{offset}'
+            ax.plot(time_steps, hazard_rates, color=color, label=label, alpha=0.7, linewidth=1.5)
 
     ax.set_xlabel('Time steps from j', fontsize=12)
     ax.set_ylabel('Hazard rate', fontsize=12)
@@ -110,8 +155,8 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
     """
     Reproduce Figure 2(b): OTI policy in action
 
-    Shows the expected time-to-event and OTI threshold (V'_j) for different
-    cost values C_α. Intervention is triggered when TTE crosses below threshold.
+    Shows how expected TTE decreases over time as we approach the event,
+    along with OTI thresholds for different costs.
 
     Args:
         model: Trained DDRSA model
@@ -123,22 +168,73 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
     """
     model.eval()
 
-    # Get a sample from test set
-    for sequences, targets, _ in data_loader:
-        break
+    # Get samples from data loader - search through multiple batches for uncensored samples
+    sequence = None
+    target = None
+    event_time = None
+    lookback = None
 
-    # Take first sample
-    sequence = sequences[0:1].to(device)
-    target = targets[0]
+    for sequences, targets, _ in data_loader:
+        # Find an uncensored sample (has actual event)
+        uncensored_mask = targets.sum(dim=1) > 0
+        if uncensored_mask.sum() > 0:
+            sample_idx = uncensored_mask.nonzero(as_tuple=True)[0][0].item()
+            sequence = sequences[sample_idx:sample_idx+1]
+            target = targets[sample_idx]
+            event_time = torch.argmax(target).item()
+            lookback = sequence.size(1)
+            break
+
+    # If no uncensored sample found in any batch, use first sample from first batch
+    if sequence is None:
+        print("Warning: No uncensored samples found in entire dataset, using first sample")
+        for sequences, targets, _ in data_loader:
+            sequence = sequences[0:1]
+            target = targets[0]
+            event_time = torch.argmax(target).item() if target.sum() > 0 else 50
+            lookback = sequence.size(1)
+            break
+
+    # Simulate sequential observations leading up to the event
+    # In the paper, they show expected TTE at each observation cycle j
+    # The TTE decreases as j increases (we're getting closer to the event)
+    # The zigzag pattern comes from actual model predictions at each time step
+    time_points = []
+    tte_values = []
 
     with torch.no_grad():
-        # Get predictions
-        hazard_logits = model(sequence)
+        # Compute expected TTE at different observation points
+        # by truncating the sequence and padding
 
-        # Compute expected TTE
-        expected_tte = compute_expected_tte(hazard_logits).cpu().numpy()[0]
+        # Sample points throughout the sequence
+        num_points = min(100, lookback)
+        step_size = max(1, lookback // num_points)
 
-        # Compute hazard rates for threshold computation
+        # Move sequence to device once
+        sequence = sequence.to(device)
+
+        for j in range(1, lookback + 1, step_size):
+            # At observation cycle j, we have seen j time steps of data
+            # Truncate sequence to first j elements and pad
+            truncated_seq = sequence[:, :j, :]
+
+            # Pad to original size (model expects fixed input size)
+            if j < lookback:
+                padding = torch.zeros(1, lookback - j, sequence.size(2), device=device)
+                padded_seq = torch.cat([padding, truncated_seq], dim=1)
+            else:
+                padded_seq = truncated_seq
+
+            # Get model prediction
+            hazard_logits = model(padded_seq)
+            expected_tte = compute_expected_tte(hazard_logits).cpu().numpy()[0]
+
+            time_points.append(j)
+            tte_values.append(expected_tte)
+
+    # Get hazard rates for threshold computation
+    with torch.no_grad():
+        hazard_logits = model(sequence.to(device))
         hazard_rates, survival_probs = compute_hazard_from_logits(hazard_logits)
         hazard_rates = hazard_rates.cpu().numpy()[0]
         survival_probs = survival_probs.cpu().numpy()[0]
@@ -146,31 +242,30 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    # Plot expected time-to-event (constant horizontal line since we only have one prediction)
-    time_steps = np.arange(len(hazard_rates))
-    ax.axhline(y=expected_tte, color='blue', linewidth=2, label='Expected time-to-event')
+    # Plot expected TTE over time (decreasing as we approach event)
+    ax.plot(time_points, tte_values, color='blue', linewidth=2,
+            label='Expected time-to-event', marker='o', markersize=4)
 
-    # Plot OTI thresholds for different costs
+    # Plot OTI thresholds for different costs (horizontal lines)
     colors = ['green', 'orange', 'red']
 
     for cost, color in zip(cost_values, colors):
-        # Compute threshold V'_j(H_j) - simplified version
-        # In practice, this would use Equation 9 from the paper
-        # Higher cost → earlier intervention → higher threshold
-
-        # Approximate threshold based on survival probability
-        # This is a simplified version; full implementation is in metrics.py
+        # Compute threshold
         threshold = compute_oti_threshold_visualization(hazard_rates, survival_probs, cost)
 
         ax.axhline(y=threshold, color=color, linewidth=2, linestyle='--',
                   label=f'OTI threshold when C={cost}')
 
-    ax.set_xlabel('Time steps', fontsize=12)
-    ax.set_ylabel('Risk', fontsize=12)
+    ax.set_xlabel('Observation cycle j', fontsize=12)
+    ax.set_ylabel('Expected TTE', fontsize=12)
     ax.set_title('OTI Policy in Action (Figure 2b)', fontsize=14, fontweight='bold')
     ax.legend()
     ax.grid(True, alpha=0.3)
-    ax.set_ylim(0, max(expected_tte * 1.5, 50))
+
+    # Set axis limits to match paper (x: 0-250, y: 0-120)
+    if len(tte_values) > 0:
+        ax.set_ylim(0, max(max(tte_values) * 1.1, 120))
+        ax.set_xlim(0, max(time_points) * 1.05)
 
     plt.tight_layout()
 
@@ -316,38 +411,46 @@ def plot_training_curves(log_dir, save_path=None):
     return fig
 
 
-def create_all_visualizations(model, test_loader, log_dir, output_dir='figures'):
+def create_all_visualizations(model, train_loader, val_loader, test_loader,
+                            log_dir, output_dir='figures', use_train_data=False):
     """
     Create all visualizations from the paper
 
     Args:
         model: Trained DDRSA model
+        train_loader: Training data loader
+        val_loader: Validation data loader
         test_loader: Test data loader
         log_dir: Directory with training logs
         output_dir: Directory to save figures
+        use_train_data: If True, use training data for visualizations
     """
     import os
     os.makedirs(output_dir, exist_ok=True)
 
     device = next(model.parameters()).device
 
-    print("Creating visualizations...")
+    # Choose which data loader to use for visualizations
+    data_loader = train_loader if use_train_data else test_loader
+    data_type = "train" if use_train_data else "test"
+
+    print(f"Creating visualizations using {data_type} data...")
 
     # Figure 2(a): Hazard rate progression
-    print("\n1. Plotting hazard rate progression (Figure 2a)...")
+    print(f"\n1. Plotting hazard rate progression (Figure 2a) on {data_type} data...")
     fig1 = plot_hazard_progression(
-        model, test_loader, device,
+        model, data_loader, device,
         num_samples=5,
-        save_path=f'{output_dir}/figure_2a_hazard_progression.png'
+        save_path=f'{output_dir}/figure_2a_hazard_progression_{data_type}.png'
     )
     plt.close(fig1)
 
     # Figure 2(b): OTI policy
-    print("2. Plotting OTI policy (Figure 2b)...")
+    print(f"2. Plotting OTI policy (Figure 2b) on {data_type} data...")
     fig2 = plot_oti_policy(
-        model, test_loader, device,
+        model, data_loader, device,
         cost_values=[8, 64, 128],
-        save_path=f'{output_dir}/figure_2b_oti_policy.png'
+        save_path=f'{output_dir}/figure_2b_oti_policy_{data_type}.png'
     )
     plt.close(fig2)
 
