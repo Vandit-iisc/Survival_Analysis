@@ -5,15 +5,94 @@ Complete reference for all training commands with different model configurations
 ---
 
 ## Table of Contents
-1. [Transformer Models](#transformer-models)
-2. [LSTM Models](#lstm-models)
-3. [GRU Models](#gru-models)
-4. [Command Line Arguments](#command-line-arguments)
-5. [Output Directory Structure](#output-directory-structure)
+1. [Dataset Selection](#dataset-selection)
+2. [Paper-Exact Configurations](#paper-exact-configurations)
+3. [Transformer Models](#transformer-models)
+4. [LSTM Models](#lstm-models)
+5. [GRU Models](#gru-models)
+6. [Command Line Arguments](#command-line-arguments)
+7. [Output Directory Structure](#output-directory-structure)
+
+---
+
+## Dataset Selection
+
+All commands support both datasets. Simply add the `--dataset` and `--data-path` arguments:
+
+### NASA Turbofan (Default)
+```bash
+--dataset turbofan --data-path ../Challenge_Data
+```
+
+### Azure Predictive Maintenance
+```bash
+--dataset azure_pm --data-path ../../AMLWorkshop/Data
+```
+
+**Note:** All model configurations below work with both datasets. Just add the appropriate dataset arguments.
+
+---
+
+## Paper-Exact Configurations
+
+These configurations match the exact hyperparameters from Appendix B of the NIPS 2022 paper.
+
+### Paper-Exact RNN (NASA Turbofan)
+
+Based on Appendix B: hidden_dim=16, batch_size=512, lr=0.01, pred_horizon=64, lambda=0.75, patience=10
+
+```bash
+python main.py \
+    --dataset turbofan \
+    --data-path ../Challenge_Data \
+    --model-type rnn \
+    --rnn-type LSTM \
+    --num-epochs 200 \
+    --patience 10 \
+    --use-paper-split \
+    --use-minmax \
+    --hidden-dim 16 \
+    --num-layers 1 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
+    --lookback-window 128 \
+    --output-dir paper_exact \
+    --exp-name turbofan_paper_exact \
+    --create-visualization
+```
+
+### Paper-Exact RNN (Azure PM)
+
+Same hyperparameters applied to Azure PM dataset:
+
+```bash
+python main.py \
+    --dataset azure_pm \
+    --data-path ../../AMLWorkshop/Data \
+    --model-type rnn \
+    --rnn-type LSTM \
+    --num-epochs 200 \
+    --patience 10 \
+    --use-minmax \
+    --hidden-dim 16 \
+    --num-layers 1 \
+    --batch-size 512 \
+    --learning-rate 0.01 \
+    --pred-horizon 64 \
+    --lambda-param 0.75 \
+    --lookback-window 128 \
+    --output-dir paper_exact \
+    --exp-name azure_pm_paper_exact \
+    --create-visualization
+```
 
 ---
 
 ## Transformer Models
+
+**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
 
 ### Basic Transformer (Default Configuration)
 
@@ -203,6 +282,8 @@ python main.py \
 
 ## LSTM Models
 
+**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
+
 ### Basic LSTM (Default Configuration)
 
 ```bash
@@ -306,6 +387,8 @@ python main.py \
 ---
 
 ## GRU Models
+
+**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
 
 ### Basic GRU
 
@@ -421,11 +504,13 @@ python main.py \
 ### Data Arguments
 | Argument | Description | Default |
 |----------|-------------|---------|
+| `--dataset` | Dataset to use (turbofan, azure_pm) | `turbofan` |
 | `--data-path` | Path to data directory | `../Challenge_Data` |
 | `--use-paper-split` | Use paper's data splitting methodology | False |
 | `--use-minmax` | Use MinMaxScaler [-1, 1] | True |
 | `--use-standard-scaler` | Use StandardScaler instead | False |
 | `--num-workers` | Data loading workers | 4 |
+| `--downsample-factor` | Down-sample factor for Azure PM (5=15 hours) | 5 |
 
 ### Transformer Arguments
 | Argument | Description | Default |

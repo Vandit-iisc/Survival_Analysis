@@ -11,6 +11,7 @@ import numpy as np
 import random
 
 from data_loader import get_dataloaders
+from azure_pm_loader import get_azure_pm_dataloaders
 from models import create_ddrsa_model
 from trainer import DDRSATrainer, get_default_config
 
@@ -104,19 +105,36 @@ def main(args):
 
     # Create data loaders
     print("Loading data...")
-    train_loader, val_loader, test_loader, scaler = get_dataloaders(
-        data_path=args.data_path,
-        batch_size=config['batch_size'],
-        lookback_window=config['lookback_window'],
-        pred_horizon=config['pred_horizon'],
-        train_file='train.txt',
-        test_file='test.txt',
-        val_split=args.val_split,
-        num_workers=args.num_workers,
-        use_paper_split=args.use_paper_split,
-        random_seed=args.seed,
-        use_minmax=args.use_minmax
-    )
+
+    if args.dataset == 'turbofan':
+        # NASA Turbofan dataset
+        train_loader, val_loader, test_loader, scaler = get_dataloaders(
+            data_path=args.data_path,
+            batch_size=config['batch_size'],
+            lookback_window=config['lookback_window'],
+            pred_horizon=config['pred_horizon'],
+            train_file='train.txt',
+            test_file='test.txt',
+            val_split=args.val_split,
+            num_workers=args.num_workers,
+            use_paper_split=args.use_paper_split,
+            random_seed=args.seed,
+            use_minmax=args.use_minmax
+        )
+    elif args.dataset == 'azure_pm':
+        # Azure Predictive Maintenance dataset
+        train_loader, val_loader, test_loader, scaler = get_azure_pm_dataloaders(
+            data_path=args.data_path,
+            batch_size=config['batch_size'],
+            lookback_window=config['lookback_window'],
+            pred_horizon=config['pred_horizon'],
+            num_workers=args.num_workers,
+            random_seed=args.seed,
+            use_minmax=args.use_minmax,
+            downsample_factor=args.downsample_factor
+        )
+    else:
+        raise ValueError(f"Unknown dataset: {args.dataset}")
 
     print(f"Train batches: {len(train_loader)}")
     print(f"Val batches: {len(val_loader)}")
@@ -278,6 +296,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train DDRSA model on NASA Turbofan dataset')
 
     # Data arguments
+    parser.add_argument('--dataset', type=str, default='turbofan',
+                       choices=['turbofan', 'azure_pm'],
+                       help='Dataset to use: turbofan (NASA) or azure_pm (Microsoft)')
     parser.add_argument('--data-path', type=str,
                        default='../Challenge_Data',
                        help='Path to data directory')
@@ -291,6 +312,8 @@ if __name__ == '__main__':
                        help='Use MinMaxScaler [-1, 1] instead of StandardScaler (paper default: True)')
     parser.add_argument('--use-standard-scaler', dest='use_minmax', action='store_false',
                        help='Use StandardScaler (z-score) instead of MinMaxScaler')
+    parser.add_argument('--downsample-factor', type=int, default=5,
+                       help='Down-sample factor for Azure PM dataset (5 = every 15 hours)')
 
     # Model arguments
     parser.add_argument('--model-type', type=str, default='rnn',
