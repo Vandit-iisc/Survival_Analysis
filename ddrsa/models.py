@@ -168,7 +168,7 @@ class DDRSA_Transformer(nn.Module):
 
     def __init__(self, input_dim, d_model=64, nhead=4, num_encoder_layers=2,
                  num_decoder_layers=2, dim_feedforward=256, pred_horizon=100,
-                 dropout=0.1):
+                 dropout=0.1, activation='relu'):
         """
         Args:
             input_dim: Dimension of input features
@@ -179,6 +179,7 @@ class DDRSA_Transformer(nn.Module):
             dim_feedforward: Dimension of feedforward network
             pred_horizon: Maximum prediction horizon (L_max)
             dropout: Dropout rate
+            activation: Activation function ('relu' or 'gelu')
         """
         super(DDRSA_Transformer, self).__init__()
 
@@ -198,6 +199,7 @@ class DDRSA_Transformer(nn.Module):
             nhead=nhead,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
+            activation=activation,
             batch_first=True
         )
         self.transformer_encoder = nn.TransformerEncoder(
@@ -217,6 +219,7 @@ class DDRSA_Transformer(nn.Module):
             nhead=nhead,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
+            activation=activation,
             batch_first=True
         )
         self.transformer_decoder = nn.TransformerDecoder(

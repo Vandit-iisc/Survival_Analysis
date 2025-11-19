@@ -86,6 +86,10 @@ def main(args):
             config['num_decoder_layers'] = args.num_decoder_layers
         if args.dim_feedforward is not None:
             config['dim_feedforward'] = args.dim_feedforward
+        if args.dropout is not None:
+            config['dropout'] = args.dropout
+        if args.activation is not None:
+            config['activation'] = args.activation
         # Legacy: --num-layers sets both encoder and decoder layers
         if args.num_layers is not None:
             config['num_encoder_layers'] = args.num_layers
@@ -267,6 +271,11 @@ if __name__ == '__main__':
                        help='Number of transformer decoder layers')
     parser.add_argument('--dim-feedforward', type=int, default=None,
                        help='Dimension of feedforward network in transformer')
+    parser.add_argument('--dropout', type=float, default=None,
+                       help='Dropout rate (default: 0.1)')
+    parser.add_argument('--activation', type=str, default=None,
+                       choices=['relu', 'gelu'],
+                       help='Activation function for transformer (default: relu)')
 
     # Training arguments
     parser.add_argument('--batch-size', type=int, default=None,
