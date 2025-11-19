@@ -210,6 +210,9 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
         num_points = min(100, lookback)
         step_size = max(1, lookback // num_points)
 
+        # Move sequence to device once
+        sequence = sequence.to(device)
+
         for j in range(1, lookback + 1, step_size):
             # At observation cycle j, we have seen j time steps of data
             # Truncate sequence to first j elements and pad
@@ -223,7 +226,7 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
                 padded_seq = truncated_seq
 
             # Get model prediction
-            hazard_logits = model(padded_seq.to(device))
+            hazard_logits = model(padded_seq)
             expected_tte = compute_expected_tte(hazard_logits).cpu().numpy()[0]
 
             time_points.append(j)
