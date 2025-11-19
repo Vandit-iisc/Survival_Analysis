@@ -26,7 +26,7 @@ All commands support both datasets. Simply add the `--dataset` and `--data-path`
 
 ### Azure Predictive Maintenance
 ```bash
---dataset azure_pm --data-path ../../AMLWorkshop/Data
+--dataset azure_pm --data-path ../AMLWorkshop/Data
 ```
 
 **Note:** All model configurations below work with both datasets. Just add the appropriate dataset arguments.
@@ -70,7 +70,7 @@ Same hyperparameters applied to Azure PM dataset:
 ```bash
 python main.py \
     --dataset azure_pm \
-    --data-path ../../AMLWorkshop/Data \
+    --data-path ../AMLWorkshop/Data \
     --model-type rnn \
     --rnn-type LSTM \
     --num-epochs 200 \
@@ -92,7 +92,7 @@ python main.py \
 
 ## Transformer Models
 
-**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
+**Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
 
 ### Basic Transformer (Default Configuration)
 
@@ -282,7 +282,7 @@ python main.py \
 
 ## LSTM Models
 
-**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
+**Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
 
 ### Basic LSTM (Default Configuration)
 
@@ -388,7 +388,7 @@ python main.py \
 
 ## GRU Models
 
-**Note:** Add `--dataset azure_pm --data-path ../../AMLWorkshop/Data` for Azure PM dataset.
+**Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
 
 ### Basic GRU
 
