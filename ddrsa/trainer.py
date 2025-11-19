@@ -328,10 +328,11 @@ class DDRSATrainer:
             if (epoch + 1) % self.config.get('save_interval', 10) == 0:
                 self.save_checkpoint(f'checkpoint_epoch_{epoch+1}.pt')
 
-            # Early stopping
-            if self.patience_counter >= self.config.get('patience', 20):
-                print(f"\nEarly stopping after {epoch+1} epochs")
-                break
+            # Early stopping (only if enabled)
+            if self.config.get('use_early_stopping', True):
+                if self.patience_counter >= self.config.get('patience', 20):
+                    print(f"\nEarly stopping after {epoch+1} epochs")
+                    break
 
         print("\nTraining complete!")
         print(f"Best validation loss: {self.best_val_loss:.4f}")
