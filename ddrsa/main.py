@@ -55,6 +55,12 @@ def main(args):
         config['warmup_steps'] = args.warmup_steps
     if args.lr_decay_type is not None:
         config['lr_decay_type'] = args.lr_decay_type
+    if args.patience is not None:
+        config['patience'] = args.patience
+    if args.no_early_stopping:
+        config['use_early_stopping'] = False
+    else:
+        config['use_early_stopping'] = True
 
     # Store num_epochs in config for scheduler calculations
     config['num_epochs'] = args.num_epochs
@@ -134,9 +140,18 @@ def main(args):
     print(f"Model created: {model.__class__.__name__}")
     print(f"Total parameters: {sum(p.numel() for p in model.parameters()):,}")
 
-    # Create trainer
-    log_dir = os.path.join(args.log_dir, args.exp_name)
+    # Create output directory structure
+    # If output_dir is specified, use it as parent directory in Survival_Analysis folder
+    # Otherwise, use default logs directory in ddrsa folder
+    if args.output_dir:
+        # Use parent directory (../output_dir relative to ddrsa)
+        base_dir = os.path.join('..', args.output_dir)
+        log_dir = os.path.join(base_dir, args.log_dir, args.exp_name)
+    else:
+        log_dir = os.path.join(args.log_dir, args.exp_name)
+
     os.makedirs(log_dir, exist_ok=True)
+    print(f"Output directory: {os.path.abspath(log_dir)}")
 
     trainer = DDRSATrainer(
         model=model,
@@ -224,12 +239,18 @@ if __name__ == '__main__':
     parser.add_argument('--lr-decay-type', type=str, default=None,
                        choices=['cosine', 'exponential', 'none'],
                        help='Learning rate decay type after warmup')
+    parser.add_argument('--patience', type=int, default=None,
+                       help='Early stopping patience (default: 20)')
+    parser.add_argument('--no-early-stopping', action='store_true',
+                       help='Disable early stopping')
 
     # Experiment arguments
     parser.add_argument('--exp-name', type=str, default='ddrsa_experiment',
                        help='Experiment name')
+    parser.add_argument('--output-dir', type=str, default=None,
+                       help='Parent output directory (default: ../results). All logs and figures will be stored here.')
     parser.add_argument('--log-dir', type=str, default='logs',
-                       help='Directory for logs and checkpoints')
+                       help='Subdirectory name for logs and checkpoints (default: logs)')
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed')
     parser.add_argument('--no-cuda', action='store_true',
