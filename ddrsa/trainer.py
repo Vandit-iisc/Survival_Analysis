@@ -514,5 +514,26 @@ def get_default_config(model_type='rnn'):
             'warmup_steps': 4000,
             'lr_decay_type': 'cosine'
         })
+    elif model_type == 'probsparse':
+        # Informer paper defaults (AAAI 2021)
+        # Note: We use smaller d_model/d_ff for survival analysis task
+        # Original Informer: d_model=512, d_ff=2048, nhead=8
+        config.update({
+            'd_model': 512,           # Informer default
+            'nhead': 8,               # Informer default
+            'num_encoder_layers': 2,  # Informer default
+            'decoder_hidden_dim': 512,  # Match encoder dimension
+            'decoder_layers': 1,      # Informer default
+            'dim_feedforward': 2048,  # Informer default
+            'dropout': 0.05,          # Informer default
+            'activation': 'gelu',     # Informer default
+            'factor': 5,              # ProbSparse attention factor
+            # Informer training settings
+            'learning_rate': 1e-4,    # Informer default
+            'batch_size': 32,         # Informer default
+            'use_warmup': True,
+            'warmup_steps': 4000,
+            'lr_decay_type': 'cosine'
+        })
 
     return config

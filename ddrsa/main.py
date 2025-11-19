@@ -95,6 +95,30 @@ def main(args):
         if args.num_layers is not None:
             config['num_encoder_layers'] = args.num_layers
             config['num_decoder_layers'] = args.num_layers
+    elif args.model_type == 'probsparse':
+        # ProbSparse model uses similar arguments to transformer
+        if args.d_model is not None:
+            config['d_model'] = args.d_model
+        if args.nhead is not None:
+            config['nhead'] = args.nhead
+        if args.num_encoder_layers is not None:
+            config['num_encoder_layers'] = args.num_encoder_layers
+        if args.dim_feedforward is not None:
+            config['dim_feedforward'] = args.dim_feedforward
+        if args.dropout is not None:
+            config['dropout'] = args.dropout
+        if args.activation is not None:
+            config['activation'] = args.activation
+        if args.factor is not None:
+            config['factor'] = args.factor
+        # Decoder settings (LSTM decoder)
+        if args.hidden_dim is not None:
+            config['decoder_hidden_dim'] = args.hidden_dim
+        if args.num_decoder_layers is not None:
+            config['decoder_layers'] = args.num_decoder_layers
+        elif args.num_layers is not None:
+            config['num_encoder_layers'] = args.num_layers
+            config['decoder_layers'] = args.num_layers
 
     print("\n" + "="*80)
     print("DDRSA Experiment Configuration")
@@ -317,7 +341,7 @@ if __name__ == '__main__':
 
     # Model arguments
     parser.add_argument('--model-type', type=str, default='rnn',
-                       choices=['rnn', 'transformer'],
+                       choices=['rnn', 'transformer', 'probsparse'],
                        help='Model architecture type')
     parser.add_argument('--hidden-dim', type=int, default=None,
                        help='Hidden dimension (for RNN)')
@@ -341,6 +365,8 @@ if __name__ == '__main__':
     parser.add_argument('--activation', type=str, default=None,
                        choices=['relu', 'gelu'],
                        help='Activation function for transformer (default: relu)')
+    parser.add_argument('--factor', type=int, default=None,
+                       help='ProbSparse attention factor (controls sparsity, default: 5)')
 
     # Training arguments
     parser.add_argument('--batch-size', type=int, default=None,

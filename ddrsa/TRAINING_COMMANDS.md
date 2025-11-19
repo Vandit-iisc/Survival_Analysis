@@ -8,10 +8,11 @@ Complete reference for all training commands with different model configurations
 1. [Dataset Selection](#dataset-selection)
 2. [Paper-Exact Configurations](#paper-exact-configurations)
 3. [Transformer Models](#transformer-models)
-4. [LSTM Models](#lstm-models)
-5. [GRU Models](#gru-models)
-6. [Command Line Arguments](#command-line-arguments)
-7. [Output Directory Structure](#output-directory-structure)
+4. [ProbSparse Models (Modified DDRSA)](#probsparse-models-modified-ddrsa)
+5. [LSTM Models](#lstm-models)
+6. [GRU Models](#gru-models)
+7. [Command Line Arguments](#command-line-arguments)
+8. [Output Directory Structure](#output-directory-structure)
 
 ---
 
@@ -275,6 +276,129 @@ python main.py \
     --learning-rate 0.00005 \
     --output-dir experiment_run1 \
     --exp-name transformer_high_dropout \
+    --create-visualization
+```
+
+---
+
+## ProbSparse Models (Modified DDRSA)
+
+Modified DDRSA architecture with ProbSparse Attention encoder (O(N log N) complexity) and LSTM decoder.
+
+**Hyperparameters based on Informer paper (AAAI 2021 Best Paper):**
+- d_model: 512, nhead: 8, d_ff: 2048
+- Encoder layers: 2, Decoder layers: 1
+- Dropout: 0.05, Activation: GELU
+- Learning rate: 1e-4, Batch size: 32
+- Factor: 5 (ProbSparse attention sparsity)
+
+**Note:** Add `--dataset azure_pm --data-path ../AMLWorkshop/Data` for Azure PM dataset.
+
+### Informer-Style ProbSparse (Recommended)
+
+Uses Informer paper default hyperparameters:
+
+```bash
+python main.py \
+    --model-type probsparse \
+    --num-epochs 200 \
+    --patience 30 \
+    --use-paper-split \
+    --use-minmax \
+    --num-encoder-layers 2 \
+    --num-decoder-layers 1 \
+    --d-model 512 \
+    --nhead 8 \
+    --dim-feedforward 2048 \
+    --hidden-dim 512 \
+    --dropout 0.05 \
+    --activation gelu \
+    --factor 5 \
+    --batch-size 32 \
+    --learning-rate 0.0001 \
+    --output-dir experiment_run1 \
+    --exp-name probsparse_informer \
+    --create-visualization
+```
+
+### Lightweight ProbSparse
+
+For limited GPU memory or faster experimentation:
+
+```bash
+python main.py \
+    --model-type probsparse \
+    --num-epochs 200 \
+    --patience 30 \
+    --use-paper-split \
+    --use-minmax \
+    --num-encoder-layers 2 \
+    --num-decoder-layers 1 \
+    --d-model 128 \
+    --nhead 4 \
+    --dim-feedforward 512 \
+    --hidden-dim 128 \
+    --dropout 0.05 \
+    --activation gelu \
+    --factor 5 \
+    --batch-size 32 \
+    --learning-rate 0.0001 \
+    --output-dir experiment_run1 \
+    --exp-name probsparse_light \
+    --create-visualization
+```
+
+### Deep ProbSparse
+
+For potentially better performance with more capacity:
+
+```bash
+python main.py \
+    --model-type probsparse \
+    --num-epochs 300 \
+    --patience 40 \
+    --use-paper-split \
+    --use-minmax \
+    --num-encoder-layers 4 \
+    --num-decoder-layers 2 \
+    --d-model 512 \
+    --nhead 8 \
+    --dim-feedforward 2048 \
+    --hidden-dim 512 \
+    --dropout 0.05 \
+    --activation gelu \
+    --factor 5 \
+    --batch-size 16 \
+    --learning-rate 0.00005 \
+    --output-dir experiment_run1 \
+    --exp-name probsparse_deep \
+    --create-visualization
+```
+
+### ProbSparse with High Sparsity
+
+Lower factor = more aggressive sparsity (faster but may lose information):
+
+```bash
+python main.py \
+    --model-type probsparse \
+    --num-epochs 200 \
+    --patience 30 \
+    --use-paper-split \
+    --use-minmax \
+    --num-encoder-layers 2 \
+    --num-decoder-layers 1 \
+    --d-model 512 \
+    --nhead 8 \
+    --dim-feedforward 2048 \
+    --hidden-dim 512 \
+    --dropout 0.05 \
+    --activation gelu \
+    --factor 3 \
+    --batch-size 32 \
+    --learning-rate 0.0001 \
+    --output-dir experiment_run1 \
+    --exp-name probsparse_sparse \
     --create-visualization
 ```
 
