@@ -345,6 +345,10 @@ class DDRSATrainer:
         print("\nTraining complete!")
         print(f"Best validation loss: {self.best_val_loss:.4f}")
 
+        # Save last epoch model (for overfitting analysis)
+        self.save_checkpoint('last_model.pt')
+        print(f"Last epoch model saved (epoch {self.epoch + 1})")
+
         # Save loss history
         loss_history = {
             'train_loss': self.train_loss_history,
