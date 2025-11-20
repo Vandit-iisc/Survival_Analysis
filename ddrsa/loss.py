@@ -12,6 +12,7 @@ Loss components:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 
 class DDRSALoss(nn.Module):
@@ -242,6 +243,189 @@ def compute_expected_tte(hazard_logits):
     expected_tte = survival_with_zero.sum(dim=1)
 
     return expected_tte
+
+
+def nasa_scoring_function(predicted_tte, true_tte):
+    """
+    NASA/PHM08 Challenge Scoring Function
+
+    Asymmetric scoring that heavily penalizes late predictions:
+    - Early prediction (predicted > true): s = exp(-d/13) - 1
+    - Late prediction (predicted < true): s = exp(d/10) - 1
+
+    where d = predicted - true
+
+    Args:
+        predicted_tte: Predicted time-to-event (batch_size,)
+        true_tte: True time-to-event (batch_size,)
+
+    Returns:
+        score: NASA score (lower is better)
+    """
+    d = predicted_tte - true_tte
+
+    # Early predictions (d > 0): lighter penalty
+    early_mask = d > 0
+    early_score = torch.exp(-d[early_mask] / 13.0) - 1
+
+    # Late predictions (d < 0): heavier penalty
+    late_mask = d <= 0
+    late_score = torch.exp(-d[late_mask] / 10.0) - 1
+
+    # Combine scores
+    total_score = torch.zeros_like(d)
+    total_score[early_mask] = early_score
+    total_score[late_mask] = late_score
+
+    return total_score.mean()
+
+
+class DDRSALossWithNASA(nn.Module):
+    """
+    DDRSA Loss Function combined with NASA Scoring Function
+
+    Total Loss = λ_ddrsa * L_DDRSA + λ_nasa * L_NASA
+
+    where:
+    - L_DDRSA: Original DDRSA loss (Equation 12)
+    - L_NASA: NASA scoring function based on expected TTE
+    - λ_ddrsa: Weight for DDRSA loss (default 1.0)
+    - λ_nasa: Weight for NASA loss (default 0.1)
+    """
+
+    def __init__(self, lambda_param=0.5, nasa_weight=0.1):
+        """
+        Args:
+            lambda_param: Trade-off parameter for DDRSA loss
+            nasa_weight: Weight for NASA scoring loss
+        """
+        super(DDRSALossWithNASA, self).__init__()
+        self.ddrsa_loss = DDRSALoss(lambda_param=lambda_param)
+        self.nasa_weight = nasa_weight
+
+    def forward(self, hazard_logits, targets, censored):
+        """
+        Compute combined DDRSA + NASA loss
+
+        Args:
+            hazard_logits: Predicted hazard logits (batch_size, pred_horizon)
+            targets: Ground truth targets (batch_size, pred_horizon)
+            censored: Censoring indicators (batch_size, pred_horizon)
+
+        Returns:
+            total_loss: Combined loss value
+        """
+        # Compute DDRSA loss
+        ddrsa_loss_value = self.ddrsa_loss(hazard_logits, targets, censored)
+
+        # Compute expected TTE from predictions
+        predicted_tte = compute_expected_tte(hazard_logits)
+
+        # Get true event times (only for uncensored samples)
+        is_uncensored = (targets.sum(dim=1) > 0).float()
+
+        if is_uncensored.sum() > 0:
+            # Extract true event times for uncensored samples
+            true_event_times = torch.argmax(targets, dim=1).float()
+
+            # Only compute NASA score for uncensored samples
+            nasa_loss_value = nasa_scoring_function(
+                predicted_tte[is_uncensored == 1],
+                true_event_times[is_uncensored == 1]
+            )
+        else:
+            # No uncensored samples in batch
+            nasa_loss_value = torch.tensor(0.0, device=hazard_logits.device)
+
+        # Combine losses
+        total_loss = ddrsa_loss_value + self.nasa_weight * nasa_loss_value
+
+        return total_loss
+
+
+class DDRSALossDetailedWithNASA(DDRSALossWithNASA):
+    """
+    Extended DDRSA+NASA loss that returns individual loss components
+    """
+
+    def forward(self, hazard_logits, targets, censored):
+        """
+        Compute combined loss with detailed components
+
+        Returns:
+            total_loss: Scalar total loss
+            loss_dict: Dictionary with individual loss components
+        """
+        # Compute DDRSA loss components
+        batch_size = hazard_logits.size(0)
+        pred_horizon = hazard_logits.size(1)
+
+        hazard_rates = torch.sigmoid(hazard_logits)
+        log_survival = torch.cumsum(torch.log(1 - hazard_rates + 1e-7), dim=1)
+        survival_probs = torch.exp(log_survival)
+
+        is_uncensored = (targets.sum(dim=1) > 0).float()
+        is_censored = 1 - is_uncensored
+
+        # l_z
+        event_times = torch.argmax(targets, dim=1)
+        hazard_at_event = torch.gather(hazard_rates, 1, event_times.unsqueeze(1)).squeeze(1)
+        event_times_minus_one = torch.clamp(event_times - 1, min=0)
+        survival_before_event = torch.gather(
+            torch.cat([torch.ones(batch_size, 1, device=hazard_logits.device),
+                      survival_probs[:, :-1]], dim=1),
+            1,
+            event_times_minus_one.unsqueeze(1)
+        ).squeeze(1)
+
+        l_z = survival_before_event * hazard_at_event
+        l_z = torch.clamp(l_z, min=1e-7)
+        loss_z = -torch.log(l_z) * is_uncensored
+        loss_z_mean = loss_z.mean()
+
+        # l_u
+        final_survival = survival_probs[:, -1]
+        l_u = 1 - final_survival
+        l_u = torch.clamp(l_u, min=1e-7)
+        loss_u = -torch.log(l_u) * is_uncensored
+        loss_u_mean = loss_u.mean()
+
+        # l_c
+        l_c = final_survival
+        l_c = torch.clamp(l_c, min=1e-7)
+        loss_c = -torch.log(l_c) * is_censored
+        loss_c_mean = loss_c.mean()
+
+        # DDRSA loss
+        ddrsa_loss_value = self.ddrsa_loss.lambda_param * loss_z_mean + \
+                          (1 - self.ddrsa_loss.lambda_param) * (loss_u_mean + loss_c_mean)
+
+        # NASA loss
+        predicted_tte = compute_expected_tte(hazard_logits)
+
+        if is_uncensored.sum() > 0:
+            true_event_times = torch.argmax(targets, dim=1).float()
+            nasa_loss_value = nasa_scoring_function(
+                predicted_tte[is_uncensored == 1],
+                true_event_times[is_uncensored == 1]
+            )
+        else:
+            nasa_loss_value = torch.tensor(0.0, device=hazard_logits.device)
+
+        # Total loss
+        total_loss = ddrsa_loss_value + self.nasa_weight * nasa_loss_value
+
+        loss_dict = {
+            'total_loss': total_loss.item(),
+            'ddrsa_loss': ddrsa_loss_value.item(),
+            'nasa_loss': nasa_loss_value.item(),
+            'loss_z': loss_z_mean.item(),
+            'loss_u': loss_u_mean.item(),
+            'loss_c': loss_c_mean.item(),
+            'uncensored_ratio': is_uncensored.mean().item()
+        }
+
+        return total_loss, loss_dict
 
 
 if __name__ == '__main__':

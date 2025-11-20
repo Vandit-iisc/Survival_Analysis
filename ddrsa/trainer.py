@@ -14,7 +14,7 @@ from tqdm import tqdm
 import time
 import math
 
-from loss import DDRSALossDetailed, compute_expected_tte
+from loss import DDRSALossDetailed, DDRSALossDetailedWithNASA, compute_expected_tte
 from metrics import evaluate_model, compute_oti_metrics
 
 
@@ -124,7 +124,18 @@ class DDRSATrainer:
         os.makedirs(os.path.join(log_dir, 'checkpoints'), exist_ok=True)
 
         # Loss function
-        self.criterion = DDRSALossDetailed(lambda_param=config.get('lambda_param', 0.5))
+        use_nasa_loss = config.get('use_nasa_loss', False)
+        nasa_weight = config.get('nasa_weight', 0.1)
+
+        if use_nasa_loss:
+            self.criterion = DDRSALossDetailedWithNASA(
+                lambda_param=config.get('lambda_param', 0.5),
+                nasa_weight=nasa_weight
+            )
+            print(f"Using DDRSA + NASA loss (NASA weight: {nasa_weight})")
+        else:
+            self.criterion = DDRSALossDetailed(lambda_param=config.get('lambda_param', 0.5))
+            print("Using DDRSA loss only")
 
         # Optimizer
         self.optimizer = optim.Adam(

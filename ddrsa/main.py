@@ -63,6 +63,11 @@ def main(args):
     else:
         config['use_early_stopping'] = True
 
+    # NASA loss configuration
+    if args.use_nasa_loss:
+        config['use_nasa_loss'] = True
+        config['nasa_weight'] = args.nasa_weight
+
     # Store num_epochs in config for scheduler calculations
     config['num_epochs'] = args.num_epochs
 
@@ -232,7 +237,7 @@ def main(args):
 
         # Create figures directory
         if args.output_dir:
-            figures_dir = os.path.join('..', args.output_dir, 'figures', args.exp_name)
+            figures_dir = os.path.join(args.output_dir, 'figures', args.exp_name)
         else:
             figures_dir = f'figures/{args.exp_name}'
         os.makedirs(figures_dir, exist_ok=True)
@@ -372,6 +377,10 @@ if __name__ == '__main__':
                        help='Number of training epochs')
     parser.add_argument('--lambda-param', type=float, default=None,
                        help='Lambda parameter for DDRSA loss')
+    parser.add_argument('--use-nasa-loss', action='store_true',
+                       help='Include NASA scoring function in loss')
+    parser.add_argument('--nasa-weight', type=float, default=0.1,
+                       help='Weight for NASA loss component (default: 0.1)')
     parser.add_argument('--lookback-window', type=int, default=None,
                        help='Lookback window size')
     parser.add_argument('--pred-horizon', type=int, default=None,

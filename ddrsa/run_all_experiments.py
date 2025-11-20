@@ -268,6 +268,11 @@ def build_command(dataset, variant, config, dataset_config, args):
     if args.device == "cpu":
         cmd.append("--no-cuda")
 
+    # Add NASA loss if requested
+    if args.use_nasa_loss:
+        cmd.append("--use-nasa-loss")
+        cmd.extend(["--nasa-weight", str(args.nasa_weight)])
+
     # Add paper split for turbofan
     if dataset_config.get("use_paper_split"):
         cmd.append("--use-paper-split")
@@ -378,6 +383,10 @@ def main():
                         help="Lambda parameter")
     parser.add_argument("--lookback-window", type=int, default=128,
                         help="Lookback window size")
+    parser.add_argument("--use-nasa-loss", action="store_true",
+                        help="Include NASA scoring function in loss")
+    parser.add_argument("--nasa-weight", type=float, default=0.1,
+                        help="Weight for NASA loss component")
     parser.add_argument("--device", default="cuda",
                         help="Device to use (cuda/cpu)")
 
