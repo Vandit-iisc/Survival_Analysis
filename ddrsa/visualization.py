@@ -138,8 +138,19 @@ def plot_hazard_progression(model, data_loader, device='cpu', num_samples=5,
     ax.set_xlabel('Time steps from j', fontsize=12)
     ax.set_ylabel('Hazard rate', fontsize=12)
     ax.set_title('Progression of Conditional Hazard Rates (Figure 2a)', fontsize=14, fontweight='bold')
-    ax.legend()
+    ax.legend(loc='upper right')
     ax.grid(True, alpha=0.3)
+
+    # Set x-axis limit
+    # Paper shows 0-350, but adapt based on actual pred_horizon
+    if hasattr(model, 'pred_horizon'):
+        max_x = max(model.pred_horizon, 350)
+    else:
+        max_x = 350
+    ax.set_xlim(0, max_x)
+
+    # Set y-axis limit for better visibility (paper shows 0-0.6)
+    ax.set_ylim(0, None)  # Auto scale but start at 0
 
     plt.tight_layout()
 
@@ -276,36 +287,41 @@ def plot_oti_policy(model, data_loader, device='cpu', cost_values=[8, 64, 128],
     return fig
 
 
-def compute_oti_threshold_visualization(hazard_rates, survival_probs, cost):
+def compute_oti_threshold_visualization(hazard_rates, survival_probs, cost, cost_beta=1.0):
     """
-    Compute OTI threshold for visualization
-    Simplified version of Equation 9 from the paper
+    Compute OTI threshold using Equation 9 from the paper
+
+    V'_j(H_j) = argmin_k { C_β * k + C_α * P(T ≤ j+k | H_j) }
 
     Args:
-        hazard_rates: Array of hazard rates
-        survival_probs: Array of survival probabilities
+        hazard_rates: Array of hazard rates h(k) for k=0,...,L-1
+        survival_probs: Array of survival probabilities S(k)
         cost: Cost of missing the event (C_α)
+        cost_beta: Cost of early intervention per time unit (C_β)
 
     Returns:
-        threshold: Threshold value for triggering intervention
+        threshold: Threshold value (expected TTE at optimal k*)
     """
-    # Expected TTE at each time point
-    tte_values = np.cumsum(survival_probs[::-1])[::-1]
+    pred_horizon = len(hazard_rates)
 
-    # Map cost to threshold
-    # Higher cost → earlier intervention → higher threshold
-    if cost <= 8:
-        percentile = 20
-    elif cost <= 32:
-        percentile = 40
-    elif cost <= 64:
-        percentile = 60
-    elif cost <= 128:
-        percentile = 75
-    else:
-        percentile = 90
+    # Compute P(T ≤ j+k | H_j) for each k
+    # P(T ≤ j+k) = 1 - S(k) where S(k) is survival prob at time k
+    failure_probs = 1 - survival_probs
 
-    threshold = np.percentile(tte_values, percentile)
+    # Compute cost function for each k: C_β * k + C_α * P(T ≤ j+k)
+    costs = np.zeros(pred_horizon)
+    for k in range(pred_horizon):
+        costs[k] = cost_beta * k + cost * failure_probs[k]
+
+    # Find k* that minimizes cost
+    k_star = np.argmin(costs)
+
+    # The threshold is the expected TTE at k*
+    # Expected TTE = sum of survival probabilities from k* onwards
+    # Add 1 at the beginning for S(0) = 1
+    survival_with_initial = np.concatenate([[1.0], survival_probs])
+    threshold = np.sum(survival_with_initial[k_star:])
+
     return threshold
 
 

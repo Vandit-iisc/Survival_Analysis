@@ -85,6 +85,10 @@ class DDRSA_RNN(nn.Module):
         # Output layer: Maps decoder hidden state to hazard rate
         self.output_layer = nn.Linear(decoder_hidden_dim, 1)
 
+        # Initialize output bias for better initial hazard rates
+        # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
+        nn.init.constant_(self.output_layer.bias, -2.0)
+
         # Dropout
         self.dropout = nn.Dropout(dropout)
 
@@ -231,6 +235,10 @@ class DDRSA_Transformer(nn.Module):
 
         # Output layer: Maps decoder output to hazard rate
         self.output_layer = nn.Linear(d_model, 1)
+
+        # Initialize output bias for better initial hazard rates
+        # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
+        nn.init.constant_(self.output_layer.bias, -2.0)
 
         # Dropout
         self.dropout = nn.Dropout(dropout)
@@ -559,6 +567,10 @@ class DDRSA_ProbSparse(nn.Module):
 
         # Output layer
         self.output_layer = nn.Linear(decoder_hidden_dim, 1)
+
+        # Initialize output bias for better initial hazard rates
+        # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
+        nn.init.constant_(self.output_layer.bias, -2.0)
 
         # Dropout
         self.dropout = nn.Dropout(dropout)

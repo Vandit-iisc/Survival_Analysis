@@ -261,37 +261,49 @@ def compute_oti_metrics(predictions, targets, censored, cost_values=[8, 16, 32, 
     return oti_metrics
 
 
-def compute_oti_threshold(hazard_logits, cost, pred_horizon=None):
+def compute_oti_threshold(hazard_logits, cost, cost_beta=1.0, pred_horizon=None):
     """
     Compute OTI threshold V'_j(H_j) from Equation 9 in the paper
 
-    This is a simplified version that uses expected TTE percentiles
-    A full implementation would compute the exact continuation value function
+    V'_j(H_j) = argmin_k { C_β * k + C_α * P(T ≤ j+k | H_j) }
 
     Args:
-        hazard_logits: Hazard logits tensor
+        hazard_logits: Hazard logits tensor (batch_size, pred_horizon)
         cost: Cost of missing the event (C_α)
-        pred_horizon: Prediction horizon
+        cost_beta: Cost of early intervention per time unit (C_β, default=1.0)
+        pred_horizon: Prediction horizon (not used, kept for compatibility)
 
     Returns:
-        threshold: Threshold value for triggering intervention
+        threshold: Threshold value for triggering intervention (scalar)
     """
-    expected_tte = compute_expected_tte(hazard_logits).numpy()
+    from loss import compute_hazard_from_logits
 
-    # Map cost to threshold using percentiles
-    # Higher cost → earlier intervention → higher threshold
-    # This is an approximation; exact computation requires Equation 9
-    cost_to_percentile = {
-        8: 0.1,
-        16: 0.2,
-        32: 0.3,
-        64: 0.5,
-        128: 0.7,
-        256: 0.9
-    }
+    # Compute hazard rates and survival probabilities
+    hazard_rates, survival_probs = compute_hazard_from_logits(hazard_logits)
 
-    percentile = cost_to_percentile.get(cost, 0.5)
-    threshold = np.percentile(expected_tte, percentile * 100)
+    # Average across batch
+    hazard_rates = hazard_rates.mean(dim=0).detach().cpu().numpy()
+    survival_probs = survival_probs.mean(dim=0).detach().cpu().numpy()
+
+    pred_horizon_len = len(hazard_rates)
+
+    # Compute P(T ≤ j+k | H_j) for each k
+    # P(T ≤ j+k) = 1 - S(k) where S(k) is survival prob at time k
+    failure_probs = 1 - survival_probs
+
+    # Compute cost function for each k: C_β * k + C_α * P(T ≤ j+k)
+    costs = np.zeros(pred_horizon_len)
+    for k in range(pred_horizon_len):
+        costs[k] = cost_beta * k + cost * failure_probs[k]
+
+    # Find k* that minimizes cost
+    k_star = np.argmin(costs)
+
+    # The threshold is the expected TTE at k*
+    # Expected TTE = sum of survival probabilities from k* onwards
+    # Add 1 at the beginning for S(0) = 1
+    survival_with_initial = np.concatenate([[1.0], survival_probs])
+    threshold = np.sum(survival_with_initial[k_star:])
 
     return threshold
 

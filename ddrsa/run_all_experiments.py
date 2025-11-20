@@ -48,6 +48,7 @@ DATASETS = {
 # Model variant configurations
 VARIANTS = {
     # ==================== Transformer variants ====================
+    # All use GELU activation and increased learning rates for better hazard magnitudes
     "transformer_basic": {
         "model_type": "transformer",
         "num_epochs": 200,
@@ -57,9 +58,9 @@ VARIANTS = {
         "nhead": 4,
         "dim_feedforward": 256,
         "dropout": 0.1,
-        "activation": "relu",
+        "activation": "gelu",
         "batch_size": 32,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.001,  # Increased 10x
     },
     "transformer_deep": {
         "model_type": "transformer",
@@ -70,9 +71,9 @@ VARIANTS = {
         "nhead": 4,
         "dim_feedforward": 256,
         "dropout": 0.1,
-        "activation": "relu",
+        "activation": "gelu",
         "batch_size": 32,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.0008,  # Increased 8x
     },
     "transformer_wide": {
         "model_type": "transformer",
@@ -83,9 +84,9 @@ VARIANTS = {
         "nhead": 8,
         "dim_feedforward": 512,
         "dropout": 0.1,
-        "activation": "relu",
+        "activation": "gelu",
         "batch_size": 24,
-        "learning_rate": 0.00008,
+        "learning_rate": 0.0006,  # Increased ~7x
     },
     "transformer_gelu": {
         "model_type": "transformer",
@@ -98,7 +99,7 @@ VARIANTS = {
         "dropout": 0.1,
         "activation": "gelu",
         "batch_size": 32,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.001,  # Increased 10x
     },
     "transformer_complex": {
         "model_type": "transformer",
@@ -109,12 +110,13 @@ VARIANTS = {
         "nhead": 8,
         "dim_feedforward": 512,
         "dropout": 0.15,
-        "activation": "relu",
+        "activation": "gelu",
         "batch_size": 16,
-        "learning_rate": 0.00005,
+        "learning_rate": 0.0005,  # Increased 10x
     },
 
     # ==================== ProbSparse/Informer variants ====================
+    # Increased learning rates for better hazard magnitudes
     "probsparse_basic": {
         "model_type": "probsparse",
         "num_epochs": 200,
@@ -126,7 +128,7 @@ VARIANTS = {
         "dropout": 0.05,
         "activation": "gelu",
         "batch_size": 32,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.001,  # Increased 10x
         "factor": 5,  # ProbSparse attention factor
     },
     "probsparse_deep": {
@@ -140,7 +142,7 @@ VARIANTS = {
         "dropout": 0.05,
         "activation": "gelu",
         "batch_size": 24,
-        "learning_rate": 0.00008,
+        "learning_rate": 0.0008,  # Increased 10x
         "factor": 5,
     },
 
@@ -301,6 +303,9 @@ def run_experiment(cmd, exp_name, output_dir, show_output=False):
     print(f"Output: {output_dir}")
     print(f"{'='*60}")
 
+    # Flush output to ensure it's displayed
+    sys.stdout.flush()
+
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
@@ -313,12 +318,16 @@ def run_experiment(cmd, exp_name, output_dir, show_output=False):
                 cwd=os.path.dirname(os.path.abspath(__file__)),
             )
         else:
-            result = subprocess.run(
+            # Use Popen for better control and to avoid hanging
+            process = subprocess.Popen(
                 cmd,
                 cwd=os.path.dirname(os.path.abspath(__file__)),
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True
             )
+            stdout, stderr = process.communicate()
+            result = subprocess.CompletedProcess(cmd, process.returncode, stdout, stderr)
 
         elapsed_time = time.time() - start_time
 
@@ -363,8 +372,8 @@ def main():
     # Training parameters (paper-exact defaults)
     parser.add_argument("--patience", type=int, default=10,
                         help="Early stopping patience")
-    parser.add_argument("--pred-horizon", type=int, default=64,
-                        help="Prediction horizon")
+    parser.add_argument("--pred-horizon", type=int, default=350,
+                        help="Prediction horizon (paper uses 350 for Figure 2a)")
     parser.add_argument("--lambda-param", type=float, default=0.75,
                         help="Lambda parameter")
     parser.add_argument("--lookback-window", type=int, default=128,
