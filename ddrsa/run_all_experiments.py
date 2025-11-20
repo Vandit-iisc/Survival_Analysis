@@ -258,10 +258,13 @@ def build_command(dataset, variant, config, dataset_config, args):
         "--lookback-window", str(args.lookback_window),
         "--output-dir", output_dir,
         "--exp-name", exp_name,
-        "--device", args.device,
         "--use-minmax",
         "--create-visualization",
     ]
+
+    # Add --no-cuda flag if device is cpu
+    if args.device == "cpu":
+        cmd.append("--no-cuda")
 
     # Add paper split for turbofan
     if dataset_config.get("use_paper_split"):
