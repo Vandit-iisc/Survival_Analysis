@@ -1,0 +1,189 @@
+{
+    "date": "2025-11-20T04:41:17.147884",
+    "datasets": [
+        "turbofan",
+        "azure_pm"
+    ],
+    "variants": [
+        "transformer_basic",
+        "transformer_deep",
+        "transformer_wide",
+        "transformer_gelu",
+        "transformer_complex",
+        "probsparse_basic",
+        "probsparse_deep",
+        "lstm_paper_exact",
+        "lstm_basic",
+        "lstm_deep",
+        "lstm_wide",
+        "lstm_complex",
+        "gru_basic",
+        "gru_deep",
+        "gru_wide",
+        "gru_complex"
+    ],
+    "total_time": 6985.381210565567,
+    "success_count": 16,
+    "fail_count": 16,
+    "results": {
+        "turbofan": {
+            "transformer_basic": {
+                "status": "success",
+                "time": 812.0925226211548
+            },
+            "transformer_deep": {
+                "status": "success",
+                "time": 1106.547767162323
+            },
+            "transformer_wide": {
+                "status": "success",
+                "time": 696.4338235855103
+            },
+            "transformer_gelu": {
+                "status": "success",
+                "time": 853.2383182048798
+            },
+            "transformer_complex": {
+                "status": "success",
+                "time": 1510.61811709404
+            },
+            "probsparse_basic": {
+                "status": "success",
+                "time": 244.61613154411316
+            },
+            "probsparse_deep": {
+                "status": "success",
+                "time": 330.69130969047546
+            },
+            "lstm_paper_exact": {
+                "status": "success",
+                "time": 203.86107397079468
+            },
+            "lstm_basic": {
+                "status": "success",
+                "time": 93.85772180557251
+            },
+            "lstm_deep": {
+                "status": "success",
+                "time": 127.19366526603699
+            },
+            "lstm_wide": {
+                "status": "success",
+                "time": 102.29738211631775
+            },
+            "lstm_complex": {
+                "status": "success",
+                "time": 124.11170506477356
+            },
+            "gru_basic": {
+                "status": "success",
+                "time": 93.97888493537903
+            },
+            "gru_deep": {
+                "status": "success",
+                "time": 158.22897839546204
+            },
+            "gru_wide": {
+                "status": "success",
+                "time": 139.02908754348755
+            },
+            "gru_complex": {
+                "status": "success",
+                "time": 144.0509970188141
+            }
+        },
+        "azure_pm": {
+            "transformer_basic": {
+                "status": "failed",
+                "time": 14.657610893249512,
+                "error": null
+            },
+            "transformer_deep": {
+                "status": "failed",
+                "time": 13.89156436920166,
+                "error": null
+            },
+            "transformer_wide": {
+                "status": "failed",
+                "time": 13.547325134277344,
+                "error": null
+            },
+            "transformer_gelu": {
+                "status": "failed",
+                "time": 15.04784369468689,
+                "error": null
+            },
+            "transformer_complex": {
+                "status": "failed",
+                "time": 14.48280954360962,
+                "error": null
+            },
+            "probsparse_basic": {
+                "status": "failed",
+                "time": 14.201174020767212,
+                "error": null
+            },
+            "probsparse_deep": {
+                "status": "failed",
+                "time": 14.518055200576782,
+                "error": null
+            },
+            "lstm_paper_exact": {
+                "status": "failed",
+                "time": 32.79442811012268,
+                "error": null
+            },
+            "lstm_basic": {
+                "status": "failed",
+                "time": 17.53508710861206,
+                "error": null
+            },
+            "lstm_deep": {
+                "status": "failed",
+                "time": 14.404163360595703,
+                "error": null
+            },
+            "lstm_wide": {
+                "status": "failed",
+                "time": 14.02504301071167,
+                "error": null
+            },
+            "lstm_complex": {
+                "status": "failed",
+                "time": 12.702127933502197,
+                "error": null
+            },
+            "gru_basic": {
+                "status": "failed",
+                "time": 13.245895147323608,
+                "error": null
+            },
+            "gru_deep": {
+                "status": "failed",
+                "time": 13.413538932800293,
+                "error": null
+            },
+            "gru_wide": {
+                "status": "failed",
+                "time": 12.758198738098145,
+                "error": null
+            },
+            "gru_complex": {
+                "status": "failed",
+                "time": 13.175055503845215,
+                "error": null
+            }
+        }
+    },
+    "args": {
+        "datasets": null,
+        "variants": null,
+        "patience": 10,
+        "pred_horizon": 64,
+        "lambda_param": 0.75,
+        "lookback_window": 128,
+        "device": "cuda",
+        "show_output": true,
+        "dry_run": false
+    }
+}
