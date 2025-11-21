@@ -175,7 +175,7 @@ def main(args):
     exclude_keys = ['model_type', 'batch_size', 'learning_rate', 'weight_decay',
                    'lambda_param', 'grad_clip', 'patience', 'save_interval',
                    'lookback_window', 'use_warmup', 'warmup_steps', 'lr_decay_type',
-                   'num_epochs', 'use_early_stopping']
+                   'num_epochs', 'use_early_stopping', 'use_nasa_loss', 'nasa_weight']
     model_kwargs = {k: v for k, v in config.items() if k not in exclude_keys}
     model = create_ddrsa_model(
         model_type=args.model_type,

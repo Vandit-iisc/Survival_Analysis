@@ -2,6 +2,25 @@
 
 ## 🚀 Common Commands
 
+### 🌟 Sequential Runner (RECOMMENDED - Live Epoch Progress!)
+```bash
+python run_sequential_experiments.py --datasets turbofan
+```
+**Best For**: Single GPU, live epoch-by-epoch progress, easy debugging
+**Shows**: Every epoch's loss, MAE, C-Index in real-time! ✨ **NEW**
+**Time**: Sequential execution
+
+---
+
+### Run with Live Monitoring (Parallel - 4 GPUs)
+```bash
+./run_with_monitor.sh
+```
+**Best For**: Multiple GPUs, faster results
+**Does Everything**: Runs experiments + monitoring in split-screen automatically!
+
+---
+
 ### Run Default Parallel Experiments (With Auto-Analysis)
 ```bash
 python run_parallel_experiments.py
@@ -9,6 +28,18 @@ python run_parallel_experiments.py
 **Creates**: 2 × 6 × 3 × 3 × 3 × 3 × 3 = **1,458 experiments**
 **Time**: ~80-160 hours on 4 GPUs
 **Analysis**: Runs automatically after training ✨
+
+---
+
+### Monitor Progress Manually (If Not Using run_with_monitor.sh)
+```bash
+# Terminal 1: Run experiments
+python run_parallel_experiments.py
+
+# Terminal 2: Monitor
+python monitor_experiments.py --output-dir parallel_experiments
+```
+**Shows**: Live dashboard with GPU status, running experiments, epoch progress, ETA ✨
 
 ---
 
