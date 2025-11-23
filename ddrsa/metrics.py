@@ -114,6 +114,82 @@ def compute_nasa_score(errors, a1=13, a2=10):
     return score
 
 
+def evaluate_nasa_predictions(predictions, targets, censored):
+    """
+    Evaluate model predictions using NASA scoring function and other metrics
+
+    Args:
+        predictions: Hazard logits of shape (N, pred_horizon) or tensor
+        targets: Ground truth targets of shape (N, pred_horizon)
+        censored: Censoring indicators of shape (N, pred_horizon)
+
+    Returns:
+        metrics: Dictionary of evaluation metrics
+    """
+    # Convert to numpy if needed
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.detach().cpu()
+    if isinstance(targets, torch.Tensor):
+        targets = targets.cpu()
+    if isinstance(censored, torch.Tensor):
+        censored = censored.cpu()
+
+    # Convert to tensors for computation
+    predictions_tensor = torch.FloatTensor(predictions) if not torch.is_tensor(predictions) else predictions
+    targets_tensor = torch.FloatTensor(targets) if not torch.is_tensor(targets) else targets
+
+    # Compute expected TTE from hazard predictions
+    expected_tte = compute_expected_tte(predictions_tensor)
+    expected_tte_np = expected_tte.numpy()
+
+    # Get true event times (only for uncensored samples)
+    is_uncensored = (targets_tensor.sum(dim=1) > 0).numpy()
+    true_event_times = torch.argmax(targets_tensor, dim=1).numpy()
+
+    # Filter to uncensored samples only
+    uncensored_indices = np.where(is_uncensored)[0]
+
+    if len(uncensored_indices) == 0:
+        # No uncensored samples
+        return {
+            'nasa_score': 0.0,
+            'mse': 0.0,
+            'mae': 0.0,
+            'rmse': 0.0,
+            'num_samples': 0,
+            'num_uncensored': 0
+        }
+
+    predicted_uncensored = expected_tte_np[uncensored_indices]
+    true_uncensored = true_event_times[uncensored_indices]
+
+    # Compute errors
+    errors = predicted_uncensored - true_uncensored
+
+    # Compute NASA score
+    nasa_score = compute_nasa_score(errors)
+
+    # Compute additional metrics
+    mse = mean_squared_error(true_uncensored, predicted_uncensored)
+    mae = mean_absolute_error(true_uncensored, predicted_uncensored)
+    rmse = np.sqrt(mse)
+
+    metrics = {
+        'nasa_score': nasa_score,
+        'mse': mse,
+        'mae': mae,
+        'rmse': rmse,
+        'mean_error': np.mean(errors),
+        'std_error': np.std(errors),
+        'num_samples': len(targets),
+        'num_uncensored': len(uncensored_indices),
+        'mean_predicted_tte': np.mean(predicted_uncensored),
+        'mean_true_tte': np.mean(true_uncensored)
+    }
+
+    return metrics
+
+
 def compute_concordance_index(predicted_time, true_time, event_observed):
     """
     Compute concordance index (C-index) for survival analysis

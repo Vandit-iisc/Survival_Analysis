@@ -1,0 +1,24 @@
+{
+    "lookback_window": 128,
+    "pred_horizon": 100,
+    "batch_size": 32,
+    "learning_rate": 0.0001,
+    "weight_decay": 1e-06,
+    "grad_clip": 1.0,
+    "patience": 20,
+    "save_interval": 10,
+    "lambda_param": 0.5,
+    "nasa_weight": 0.1,
+    "model_type": "rnn",
+    "exp_name": "hybrid_lstm",
+    "description": "LSTM with DDRSA+NASA hybrid loss (exact paper config)",
+    "model_params": {
+        "encoder_hidden_dim": 16,
+        "decoder_hidden_dim": 16,
+        "encoder_layers": 1,
+        "decoder_layers": 1,
+        "dropout": 0.1,
+        "rnn_type": "LSTM"
+    },
+    "use_nasa_loss": true
+}
