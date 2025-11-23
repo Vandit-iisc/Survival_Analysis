@@ -1,0 +1,110 @@
+{
+    "date": "2025-11-23T12:34:32.111413",
+    "datasets": [
+        "turbofan"
+    ],
+    "variants": [
+        "transformer_basic",
+        "transformer_deep",
+        "transformer_wide",
+        "transformer_gelu",
+        "transformer_complex",
+        "probsparse_basic",
+        "probsparse_deep",
+        "lstm_paper_exact",
+        "lstm_basic",
+        "lstm_deep",
+        "lstm_wide",
+        "lstm_complex",
+        "gru_basic",
+        "gru_deep",
+        "gru_wide",
+        "gru_complex"
+    ],
+    "total_time": 3095.88840007782,
+    "success_count": 16,
+    "fail_count": 0,
+    "results": {
+        "turbofan": {
+            "transformer_basic": {
+                "status": "success",
+                "time": 163.9036042690277
+            },
+            "transformer_deep": {
+                "status": "success",
+                "time": 248.54103755950928
+            },
+            "transformer_wide": {
+                "status": "success",
+                "time": 241.02767968177795
+            },
+            "transformer_gelu": {
+                "status": "success",
+                "time": 170.35943150520325
+            },
+            "transformer_complex": {
+                "status": "success",
+                "time": 285.8143391609192
+            },
+            "probsparse_basic": {
+                "status": "success",
+                "time": 629.0487034320831
+            },
+            "probsparse_deep": {
+                "status": "success",
+                "time": 431.8285789489746
+            },
+            "lstm_paper_exact": {
+                "status": "success",
+                "time": 33.12749624252319
+            },
+            "lstm_basic": {
+                "status": "success",
+                "time": 58.4109845161438
+            },
+            "lstm_deep": {
+                "status": "success",
+                "time": 87.3713366985321
+            },
+            "lstm_wide": {
+                "status": "success",
+                "time": 60.16837549209595
+            },
+            "lstm_complex": {
+                "status": "success",
+                "time": 321.4305636882782
+            },
+            "gru_basic": {
+                "status": "success",
+                "time": 59.98932981491089
+            },
+            "gru_deep": {
+                "status": "success",
+                "time": 56.52511262893677
+            },
+            "gru_wide": {
+                "status": "success",
+                "time": 85.24866533279419
+            },
+            "gru_complex": {
+                "status": "success",
+                "time": 163.0695013999939
+            }
+        }
+    },
+    "args": {
+        "datasets": [
+            "turbofan"
+        ],
+        "variants": null,
+        "patience": 10,
+        "pred_horizon": 350,
+        "lambda_param": 0.75,
+        "lookback_window": 128,
+        "use_nasa_loss": true,
+        "nasa_weight": 0.1,
+        "device": "cuda",
+        "show_output": false,
+        "dry_run": false
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "rmse": 159.46822641007518,
+    "mae": 145.51519775390625,
+    "nasa_score": 57461092546200.65,
+    "c_index": 0.5,
+    "integrated_brier_score": 0.3369300151125692,
+    "oti_miss_rate_C8": 0.9805846744426399,
+    "oti_avg_tte_C8": 0.0,
+    "oti_miss_rate_C16": 0.9805846744426399,
+    "oti_avg_tte_C16": 0.0,
+    "oti_miss_rate_C32": 0.9805846744426399,
+    "oti_avg_tte_C32": 0.0,
+    "oti_miss_rate_C64": 0.9805846744426399,
+    "oti_avg_tte_C64": 0.0,
+    "oti_miss_rate_C128": 0.9805846744426399,
+    "oti_avg_tte_C128": 0.0,
+    "oti_miss_rate_C256": 0.9805846744426399,
+    "oti_avg_tte_C256": 0.0
+}
