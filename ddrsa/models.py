@@ -87,7 +87,7 @@ class DDRSA_RNN(nn.Module):
 
         # Initialize output bias for better initial hazard rates
         # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
-        nn.init.constant_(self.output_layer.bias, -2.0)
+        nn.init.constant_(self.output_layer.bias, 0.0)
 
         # Dropout
         self.dropout = nn.Dropout(dropout)
@@ -238,7 +238,7 @@ class DDRSA_Transformer(nn.Module):
 
         # Initialize output bias for better initial hazard rates
         # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
-        nn.init.constant_(self.output_layer.bias, -2.0)
+        nn.init.constant_(self.output_layer.bias, 0.0)
 
         # Dropout
         self.dropout = nn.Dropout(dropout)
@@ -570,7 +570,7 @@ class DDRSA_ProbSparse(nn.Module):
 
         # Initialize output bias for better initial hazard rates
         # sigmoid(-2) ≈ 0.12, which is a reasonable starting hazard rate
-        nn.init.constant_(self.output_layer.bias, -2.0)
+        nn.init.constant_(self.output_layer.bias, 0.0)
 
         # Dropout
         self.dropout = nn.Dropout(dropout)
